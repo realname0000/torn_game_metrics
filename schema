@@ -1,0 +1,63 @@
+CREATE TABLE apikeys (
+        et          int not NULL,
+        player_id       int primary key not NULL,
+        key             text not NULL);
+CREATE TABLE playerwatch (
+        et              int not NULL,
+        latest          int not NULL,
+        ignore          int not NULL,
+        faction_id      int not NULL,
+        player_id       int primary key UNIQUE not NULL);
+CREATE TABLE playercrimes (
+        et                                int,
+        api_id                            int,
+        player_id                         int not NULL,
+        selling_illegal_products          int,
+        theft                             int,
+        auto_theft                        int,
+        drug_deals                        int,
+        computer_crimes                   int,
+        murder                            int,
+        fraud_crimes                      int,
+        other                             int,
+        total                             int);
+CREATE TABLE namelevel (
+        et              int not NULL,
+        name            text not NULL,
+        level           int not NULL,
+        player_id       int primary key UNIQUE not NULL);
+CREATE TABLE factionwatch (
+        et              int not NULL,
+        latest_basic    int not NULL,
+        latest_oc       int not NULl,
+        ignore          int not NULL,
+        faction_id      int not NULL,
+        player_id       int not NULL);
+CREATE TABLE factionoc (
+        et                int,
+        api_id            int not NULL,
+        faction_id        int not NULL,
+        oc_plan_id        int not NULL,
+        crime_id          int not NULL,
+        crime_name        text,
+        participants      text,
+        time_started      int,
+        time_completed    int,
+        initiated         int,
+        success           int,
+        money_gain        int,
+        respect_gain      int,
+        time_executed     int);
+CREATE TABLE whodunnit (
+        et             int not NULL,
+        player_id      int not NULL,
+        faction_id     int not NULL,
+        oc_plan_id     int not NULL);
+CREATE TABLE readiness (
+        et             int not NULL,
+        player_id      int not NULL,
+        cur_nerve      int,
+        max_nerve      int,
+        status_0       text,
+        status_1       text);
+/* No STAT tables available */
