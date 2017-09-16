@@ -31,7 +31,7 @@ class Tornapi:
             return ["EPARM how"]
     
         print("about to query ", what, repr(which) , " for ", how)
-        ak="7CKwQOsq" # XXX XXX XXX XXX XXX XXX
+        ak="SECRET-API-KEY" # XXX XXX XXX XXX XXX XXX
     
         apiurl="https://api.torn.com/" + what + "/" + str(which) + "?selections=" + how + "&key=" + ak
         time.sleep(1)
