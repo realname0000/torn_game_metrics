@@ -67,6 +67,15 @@ def prepare_player_stats(p_id, pid2name, page_time):
     col6_answer="time data<br/>level=" + seconds_text(level_time) + "<br/>crimes=" + seconds_text(crime_time) + "<br/>stats=???"
 
 
+#   PSTATS
+    pstats='jail ?<br/>bust ?<br/>failbust ?'
+    stat_num = None
+    c.execute("""select  jailed,peoplebusted,failedbusts from pstats where player_id=? order by et""",(p_id,))
+    for row in c:
+        stat_num = row
+    if stat_num:
+        pstats='jail ' + str(stat_num[0]) +  '<br/>bust ' + str(stat_num[1]) + '<br/>failbust ' + str(stat_num[2]) 
+
 #   IDLE TIME
     c.execute("""select  et,total from playercrimes where player_id=? order by et""",(p_id,))
     was, when, one_interval, longest_interval = 0,0,0,0 # activity
@@ -120,6 +129,7 @@ def prepare_player_stats(p_id, pid2name, page_time):
     blob.append(crimes_planned)
     blob.append(col_ratio_answer)
     blob.append(col6_answer)
+    blob.append(pstats)
     blob.append(days_idle)
     blob.append(col4_answer)
     blob.append(col3_answer)
@@ -189,7 +199,9 @@ def prepare_faction_stats(f_id):
         print("<div align='right'>" + q + "</div>", file=web)
         print("</td><td>", file=web)
 
-        print("bust failedbust jail", file=web)
+        # jail etc
+        q = item.pop()
+        print(q, file=web)
         print("</td><td>", file=web)
 
         q = item.pop()

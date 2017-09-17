@@ -12,7 +12,7 @@ player_crime_timestep = 43200
 faction_basic_timestep = 43200
 level_timestep = 86400
 
-def get_player(p_id, player_id_api):
+def get_player(web, p_id):
     t=int (time.time())
     c.execute ("""select latest,ignore from playerwatch where player_id=?""",(p_id,))
     for row in c:
@@ -20,32 +20,42 @@ def get_player(p_id, player_id_api):
             return "TOO RECENT"
         if row[1]:
             return "IGNORE THIS PLAYER"
-    web=web_api.Tornapi()
     result = web.torn('user', p_id, 'crimes')
+    conn.commit()
     if 'OK' == result[0]:
         cx = result[1]['criminalrecord']
+        player_id_api = result[2]
         c.execute("""insert into playercrimes values (?,?,?,?, ?,?,?,?, ?,?,?,?)""",
             (t, player_id_api, p_id,  cx['selling_illegal_products'], cx['theft'], cx['auto_theft'], cx['drug_deals'], cx['computer_crimes'], cx['murder'], cx['fraud_crimes'], cx['other'], cx['total'],))
         c.execute ("""update playerwatch set latest=? where player_id=?""", (t, p_id,))
         conn.commit()
-        return "OK"
-    return "FAIL"
+    else:
+        return "FAIL to get crimes"
+    result = web.torn('user', p_id, 'personalstats')
+    conn.commit()
+    if 'OK' == result[0]:
+        ps = result[1]['personalstats']
+        player_id_api = result[2]
+        c.execute("""insert into pstats values (?,?,? ?,?,?)""", (t, player_id_api, p_id,  ps['jailed'], ps['peoplebusted'], ps['failedbusts"'],))
+        c.execute ("""update playerwatch set latest=? where player_id=?""", (t, p_id,))
+        conn.commit()
+    else:
+        return "FAIL to get personalstats"
+    return "OK"
 
-def get_faction(f_id, player_id_api, oc_interval):
+def get_faction(web, f_id, oc_interval):
     t=int (time.time())
     c.execute ("""select latest_basic,latest_oc,ignore from factionwatch where faction_id=?""",(f_id,))
     for row in c:
         latest_basic=row[0]
         latest_oc=row[1]
         ignore=row[2]
-
     if ignore:
         return "IGNORE THIS FACTION"
-
-    web=web_api.Tornapi()
     if latest_basic+faction_basic_timestep < t:
-        print("plan to query faction ", repr(f_id) , " for BASIC with API key for ", repr(player_id_api) )
+        print("plan to query faction ", repr(f_id) , " for BASIC")
         result = web.torn('faction', f_id, 'basic')
+        conn.commit()
         if 'OK' == result[0]:
             members=result[1]['members']
             # Because I have not figured out insert if not exists
@@ -73,8 +83,10 @@ def get_faction(f_id, player_id_api, oc_interval):
     if latest_oc+oc_interval < t:  # comparing latest_basic
         # Now do faction crimes - OC
         result = web.torn('faction', 11581, 'crimes')
+        conn.commit()
         if 'OK' == result[0]:
             oc=result[1]['crimes']
+            player_id_api = result[2]
             c.execute("""SELECT oc_plan_id,time_started,initiated FROM factionoc where faction_id=?""", (f_id,))
             oc_plan_already = {}
             for row in c:
@@ -106,7 +118,7 @@ def get_faction(f_id, player_id_api, oc_interval):
 
     #
     #XXX TODO
-    print("plan to query faction ", repr(f_id) , " for STATS with API key for ", repr(player_id_api) )
+    print("plan to query faction for STATS")
     return "OK"
     # write to db
     conn.commit()
@@ -122,7 +134,7 @@ def expire_old_data():
 
 
 def clean_data():
-    #  rtemove duplication if present in factionwatch
+    #  remove duplication if present in factionwatch
     for ignore in [0,1]:
         faction = {}
         need_to_clean = 0
@@ -156,7 +168,7 @@ def clean_data():
                     c.execute("""insert into factionwatch values (?, ?,?,?, ?, ?)""", (et, latest_basic, latest_oc, ignore, f, p,))
                     conn.commit()
 
-def refresh_namelevel():
+def refresh_namelevel(web):
     # Get player names and levels
     et=int (time.time())
     player_level_already = {}
@@ -177,9 +189,9 @@ def refresh_namelevel():
         else:
             player_level_todo[m] = 1
     #
-    web=web_api.Tornapi()
     for m in player_level_todo:
         result = web.torn('user', m, 'basic')
+        conn.commit()
         if 'OK' == result[0]:
             level = result[1]['level']
             name = result[1]['name']
@@ -193,7 +205,7 @@ def refresh_namelevel():
             c.execute("""insert or ignore into namelevel values (?, ?, ?, ?)""", (et, name, level, m,))
         conn.commit()
 
-def get_readiness(p_id):
+def get_readiness(web, p_id):
     # readiiness for OC
     #
     # test for how recent a result we already have
@@ -205,19 +217,20 @@ def get_readiness(p_id):
             t_already = row[0]
     if (t_already + 300 > et):
         return "TOO RECENT"
+    #
     cur_nerve, max_nerve, status_0, status_1=0, 0, '?', '?'
-    web=web_api.Tornapi()
     result = web.torn('user', p_id, 'profile')
+    conn.commit()
     if 'OK' == result[0]:
         q1_data = result[1]
     else:
         return "Fail"
     # and find nerve if possible
-    if p_id == 1338804:   # XXX XXX XXX
-        result = web.torn('user', p_id, 'bars')
-        if 'OK' == result[0]:
-            cur_nerve = result[1]['nerve']['current']
-            max_nerve = result[1]['nerve']['maximum']
+    result = web.torn('user', p_id, 'bars')
+    conn.commit()
+    if 'OK' == result[0]:
+        cur_nerve = result[1]['nerve']['current']
+        max_nerve = result[1]['nerve']['maximum']
     #
     c.execute("""insert into readiness values (?, ?, ?, ?, ?, ?)""", (et, p_id, cur_nerve, max_nerve, q1_data['status'][0], q1_data['status'][1],))
     conn.commit()
@@ -232,47 +245,45 @@ conn.commit()
 
 f_todo = {}
 f_ignore = {}
-c.execute ("""select  faction_id,latest_basic,latest_oc,ignore,player_id  from factionwatch""")
+c.execute ("""select faction_id,ignore,player_id from factionwatch""")
 for row in c:
-    if (row[3]):
-        f_ignore[row[0]] = 1
+    faction_id,ignore,player_id = row
+    if ignore:
+        f_ignore[faction_id] = 1
         continue
-    try:
-        dummy = f_todo[row[0]]
-    except:
-        f_todo[row[0]] = []
-    f_todo[row[0]].append(row[4])
+    if not faction_id in f_todo:
+        f_todo[faction_id] = []
+    f_todo[faction_id].append(player_id)
 
 for f in f_ignore:
     if f in f_todo:
         del f_todo[f]
 
-# detect OC that are read or nearly ready
+web=web_api.Tornapi(c) # use this one object throughout
+
+# detect OC that are ready or nearly ready
 near = 3600 + int(time.time())
 for f in f_todo:
     gang = {}
     oc_soon = []
     c.execute ("""select oc_plan_id from factionoc where initiated=0 and faction_id=? and time_completed<?""",(f,near,))
     for row in c:
-        print("Expecting OC for faction ", f, " oc_plan_id is ", row[0])
         oc_soon.append(row[0])
-    # Should randomise these to vary the api_key used when there is a choice
-    for api_delegate in f_todo[f]:
-        if len(oc_soon):
-            # OC due - look more closely at the OC data
-            for plan in oc_soon:
-                print("Interest in OC for ", f, " a plan is ", plan)
-                c.execute ("""select player_id  from whodunnit where oc_plan_id==? and faction_id=?""",(plan,f,))
-                for row in c:
-                    gang[row[0]]=1
-            rc=get_faction(f, api_delegate,  900) # get from API the faction data (except where recent data is already known or ignored flag is set)
-        else:
-            rc=get_faction(f, api_delegate, 7200) # get from API the faction data (except where recent data is already known or ignored flag is set)
-        for player in gang:
-            get_readiness(player)
-        if 'OK' != rc:
-            print("return from get_faction(", f, api_delegate, ") is ", rc)
-        # if rc was OK should remove from f_todo and avoid possible duplication
+    if len(oc_soon):
+        # OC due - look more closely at the OC data
+        for plan in oc_soon:
+            print("Interest in OC for ", f, " a plan is ", plan)
+            c.execute ("""select player_id  from whodunnit where oc_plan_id==? and faction_id=?""",(plan,f,))
+            for row in c:
+                gang[row[0]]=1
+        rc=get_faction(web, f, 900) # get from API the faction data (except where recent data is already known or ignored flag is set)
+    else:
+        rc=get_faction(web, f, 7200) # get from API the faction data (except where recent data is already known or ignored flag is set)
+    for player in gang:
+        get_readiness(web, player)
+    if 'OK' != rc:
+        print("return from get_faction(", web, f, ") is ", rc)
+    # if rc was OK should remove from f_todo and avoid possible duplication
 
 # Put crimes in whodunnit if not there already
 now = int(time.time())
@@ -323,21 +334,19 @@ for row in c:
     p_todo[row[0]]=1 
 
 for p in p_todo:
-    rc=get_player(p, 1338804)
+    rc=get_player(web, p)
     if rc == "TOO RECENT":
         continue
     print("return from get_player(" + str(p) + ") is ", rc)
     time.sleep(2)
 
-
-
-refresh_namelevel()
+refresh_namelevel(web)
 clean_data()
 expire_old_data()
 
 conn.commit()
 c.close()
-
+web.apistats()
 t_end_finegrain=time.time()
 print("Time taken is ", t_end_finegrain - t_start_finegrain)
 print("Finished OK")

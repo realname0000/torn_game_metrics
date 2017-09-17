@@ -1,7 +1,3 @@
-CREATE TABLE apikeys (
-        et          int not NULL,
-        player_id       int primary key not NULL,
-        key             text not NULL);
 CREATE TABLE playerwatch (
         et              int not NULL,
         latest          int not NULL,
@@ -11,7 +7,7 @@ CREATE TABLE playerwatch (
 CREATE TABLE playercrimes (
         et                                int,
         api_id                            int,
-        player_id                         int not NULL,
+        player_id                         intnot NULL,
         selling_illegal_products          int,
         theft                             int,
         auto_theft                        int,
@@ -60,4 +56,25 @@ CREATE TABLE readiness (
         max_nerve      int,
         status_0       text,
         status_1       text);
+CREATE TABLE apikeys (
+        et          int not NULL,
+        player_id       int primary key not NULL,
+        short_err       int not NULL,
+        long_err        int not NULL,
+        key             text not NULL);
+CREATE TABLE error (
+        et             int not NULL,
+        player_id      int not NULL,
+        what           text,
+        which          int,
+        how            text,
+        code           int,
+        error_msg      text);
+CREATE TABLE pstats (
+        et             int not NULL,
+        api_id         int not NULL,
+        player_id      int not NULL,
+        jailed         int,
+        peoplebusted   int,
+        failedbusts    int);
 /* No STAT tables available */
