@@ -1,6 +1,8 @@
 import sqlite3
 import time
 import os
+import re
+import hashlib
 
 #   def show(self, who, finance):
 #       print("rhubarb",  who)
@@ -14,11 +16,42 @@ import os
 #               print(person, ' gets ', finance[person], file=webpage)
 #               webpage.close()
 
+def html_clean(t):
+    while 1:
+        got = re.search( r'(^.*)</[a-zA-Z0-9 ]*>(.*)$', t)
+        if got:
+            # want to edit string
+            t=got.group(1)+got.group(2)
+            continue
+
+        got = re.search( r'(^.*)    *(.*)$', t)
+        if got:
+            # want to edit string
+            t=got.group(1)+' '+got.group(2)
+            continue
+ 
+        got = re.search( r'(^.*)[\r\n](.*)$', t)
+        if got:
+            # want to edit string
+            t=got.group(1)+' '+got.group(2)
+            continue
+ 
+        got = re.search( r'(^.*)<[a-zA-Z0-9 =.?]*>(.*)$', t)
+        if got:
+            # want to edit string
+            t=got.group(1)+got.group(2)
+            continue
+        else:
+            break
+    return t
   
 class Crime_history:
 
     def init():
         pass
+
+
+
 
     #  db connection
     #   list of OC data  ... needs to include player_id ... specify it here
@@ -28,18 +61,31 @@ class Crime_history:
     #        filename precursor
     #     player_id as p_id needed for status history
     def crime2html(self, c, db_queue, pid2name, need_status, source_type, fname_pre, p_id):
-        # return value is [ success/failure, the filename of the web page (to be made into a link by the caller), mtime of web page ]
-        if ('player' == source_type) and  p_id:
-            fname = 'tmp-player-' + str(p_id) + '.txt'
+        # return value is [ success/failure, the HREF of the web page, mtime of web page ]
+        how_recent = 0
+        for row in db_queue:
+            et=row[8]
+            if et > how_recent:
+                how_recent = et
+
+        if ('player' == source_type) and p_id:
+            dname = hashlib.sha1(bytes(str(p_id) + fname_pre, 'utf-8')).hexdigest()
+            longdname='/srv/www/htdocs/player/' + dname
             try:
-                mtime = os.stat(fname).st_mtime
-                if mtime > 0: # time-of-data: XXX
+                mtime = os.stat(longdname).st_mtime
+            except:
+                os.mkdir(longdname)
+            shortname='/player/' + dname + '/oc_history.txt'
+            longname='/srv/www/htdocs' + shortname
+            try:
+                mtime = os.stat(longname).st_mtime
+                if mtime > how_recent: # time-of-data
                     # page exists, use it unchanged
-                    return [1, fname, mtime]
+                    return [1, shortname, int(mtime)]
             except:
                 pass # need to write file
         else:
-            fail =1/0
+            return [0]
         #
         # If the web page already exists and is up to date return immediately
         # else open and write temp web page then rename it
@@ -54,15 +100,17 @@ class Crime_history:
             player_list=row[5]
             money=row[6]
             respect=row[7]
+            et=row[8]
                 
             players= player_list.split(',')
             comma = ''
             namelist = ''
             for oneplayer in players:
                 if oneplayer in pid2name:
-                    namelist = namelist + comma + pid2name[oneplayer]
+                    one_player_name = pid2name[oneplayer]
                 else:
-                    namelist = namelist + comma + str(oneplayer)
+                    one_player_name = str(oneplayer)
+                namelist = namelist + comma + one_player_name
                 comma = ', '
             timestring =  time.strftime("%Y-%m-%d", time.gmtime(time_completed)) + ' '
             crimes_planned = crimes_planned + linebreak +  timestring + crime_name + ' players are ' + namelist
@@ -70,6 +118,11 @@ class Crime_history:
             #
             if initiated:
                 if need_status:
+                    if str(p_id) in pid2name:
+                        player_name = pid2name[str(p_id)]
+                    else:
+                        print("WHY MISSING? ", p_id, " not in " , pid2name)
+                        player_name = str(p_id)
                     # Player readiness history goes here
                     t_first = None
                     c.execute("""select max(et) from readiness where player_id=? and et<? and et>?""",(p_id, time_completed, time_completed-3600,))
@@ -80,10 +133,12 @@ class Crime_history:
                         c.execute("""select et,cur_nerve,max_nerve,status_0,status_1  from readiness where player_id=? and et>=? and et<?""",(p_id, t_first, time_executed,))
                         for player_history in c:
                             t_alibi,cur_nerve,max_nerve,status_0,status_1 = player_history
+                            status_0=html_clean(status_0)
+                            status_1=html_clean(status_1)
                             delta_t = t_alibi - time_completed # could be +ve or -ve
                             # status_0 may need cleaning for HTML
                             # status_1 may need cleaning for HTML
-                            crimes_planned = crimes_planned + '<br/>' + time.strftime("%H:%M", time.gmtime(t_alibi)) + ' T '
+                            crimes_planned = crimes_planned + '\n' + player_name +  ' ' +  time.strftime("%H:%M", time.gmtime(t_alibi)) + ' T '
                             if delta_t < 0:
                                 crimes_planned = crimes_planned + 'minus '
                                 delta_t *= -1
@@ -94,16 +149,21 @@ class Crime_history:
                                 crimes_planned = crimes_planned + ' nerve=' + str(cur_nerve) +'/'+ str(max_nerve)
                 #
                 if success:
-                    crimes_planned = crimes_planned + '<br/>' + 'money=' + str(money) + ' respect=' + str(respect) 
+                    crimes_planned = crimes_planned + '\n' + 'money=' + str(money) + ' respect=' + str(respect) 
                 else:
-                    crimes_planned = crimes_planned + '<br/>' + 'Fail'
+                    crimes_planned = crimes_planned + '\n' + 'Fail'
                 if time_executed:
                     delaytime = (time_executed - time_completed)/60
                     delaytime =int(delaytime+1)
                     crimes_planned = crimes_planned +  ' delay=' + str(delaytime) + ' minutes (or less)'
             else:
-                crimes_planned = crimes_planned + '<br/>still future'
-            crimes_planned = crimes_planned + '<br/>'
+                crimes_planned = crimes_planned + '\nstill future'
+            crimes_planned = crimes_planned + '\n'
             linebreak='\n'
 
-            return [1, fname, 1505509095] # mtime XXX
+        webpage=open("tmpfile", "w")
+        print(crimes_planned, file=webpage)
+        webpage.close()
+        os.rename("tmpfile", longname)
+        mtime = os.stat(longname).st_mtime
+        return [1, shortname, int(mtime)]

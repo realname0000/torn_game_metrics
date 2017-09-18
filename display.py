@@ -2,6 +2,7 @@
 
 import sqlite3
 import time
+import os
 import player_oc_history
 
 def seconds_text(s):
@@ -19,19 +20,21 @@ def prepare_player_stats(p_id, pid2name, page_time):
     # produce OC list
     linebreak=''
     db_queue = []
-    c.execute("""select factionoc.crime_name,factionoc.initiated,factionoc.success,factionoc.time_completed,factionoc.time_executed,factionoc.participants,factionoc.money_gain,factionoc.respect_gain from factionoc,whodunnit where factionoc.oc_plan_id = whodunnit.oc_plan_id and  whodunnit.player_id = ? order by time_completed desc""",(p_id,))
+    c.execute("""select factionoc.crime_name,factionoc.initiated,factionoc.success,factionoc.time_completed,factionoc.time_executed,factionoc.participants,factionoc.money_gain,factionoc.respect_gain,factionoc.et from factionoc,whodunnit where factionoc.oc_plan_id = whodunnit.oc_plan_id and  whodunnit.player_id = ? order by time_completed desc""",(p_id,))
     for row in c:
         db_queue.append(row)
     #
     if len(db_queue):
-        # does web page already exist?
-        # call something with db_queue etc
+        # what should the name of the web page be?
+        dname='012345' # XXX secret precursor
         hist=player_oc_history.Crime_history()
-        retlist = hist.crime2html(c, db_queue, pid2name, 1, 'player', 'fribble_prestring', p_id)
+        retlist = hist.crime2html(c, db_queue, pid2name, 1, 'player', dname, p_id)
         got_page = retlist[0]
         if got_page:
-            # time parameter to help see whether a page has change since you last loaded it in the browser
+            # time parameter to help see whether a page has changed since you last loaded it in the browser
             crimes_planned = '<a href="' + retlist[1] + '?t=' +  str(retlist[2]) + '">OC history</a>'
+        else:
+            crimes_planned = 'failed to get page'
     else:
         crimes_planned = 'no OC to show'
 
@@ -64,7 +67,7 @@ def prepare_player_stats(p_id, pid2name, page_time):
     c.execute ("""select latest from playerwatch where player_id=?""",(p_id,))
     for row in c:
         crime_time = page_time - row[0]
-    col6_answer="time data<br/>level=" + seconds_text(level_time) + "<br/>crimes=" + seconds_text(crime_time) + "<br/>stats=???"
+    col6_answer="level=" + seconds_text(level_time) + "<br/>crimes=" + seconds_text(crime_time)
 
 
 #   PSTATS
@@ -164,7 +167,7 @@ def prepare_faction_stats(f_id):
     for tt in c:
         oc_time = page_time - tt[0]
 
-    web=open("output.html", "w")
+    web=open("../web/output.html", "w")
     print("<html><head></head><body><h2>Faction data</h2>", file=web)
     print("<br/>Page created at ", time.strftime("%Y-%m-%d %H:%M", time.gmtime(page_time)), file=web)
     print("<br/>Faction organised crime data " + seconds_text(oc_time) + " old", file=web)
@@ -221,12 +224,13 @@ def prepare_faction_stats(f_id):
     print("</table>", file=web)
     print("<body><html>", file=web)
     web.close()
+    os.rename("../web/output.html", "/srv/www/htdocs/faction/demo.html")
 
 
 ###################################################################################################
 
 
-conn = sqlite3.connect('torn_db')
+conn = sqlite3.connect('/var/torn/torn_db')
 c = conn.cursor()
 conn.commit()
 
