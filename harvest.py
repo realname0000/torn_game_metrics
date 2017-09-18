@@ -36,7 +36,7 @@ def get_player(web, p_id):
     if 'OK' == result[0]:
         ps = result[1]['personalstats']
         player_id_api = result[2]
-        c.execute("""insert into pstats values (?,?,? ?,?,?)""", (t, player_id_api, p_id,  ps['jailed'], ps['peoplebusted'], ps['failedbusts"'],))
+        c.execute("""insert into pstats values (?,?,?, ?,?,?)""", (t, player_id_api, p_id,  ps['jailed'], ps['peoplebusted'], ps['failedbusts'],))
         c.execute ("""update playerwatch set latest=? where player_id=?""", (t, p_id,))
         conn.commit()
     else:
@@ -79,8 +79,11 @@ def get_faction(web, f_id, oc_interval):
                     c.execute("""update playerwatch set faction_id=? where player_id=?""", (-1, other_players,))
             c.execute("""update factionwatch set latest_basic=? where faction_id=?""", (t, f_id,))
             conn.commit()
+        else:
+            print("Problem discovering faction basic?  ", result)
 
     if latest_oc+oc_interval < t:  # comparing latest_basic
+        print("plan to query faction ", repr(f_id) , " for CRIMES")
         # Now do faction crimes - OC
         result = web.torn('faction', 11581, 'crimes')
         conn.commit()
@@ -101,7 +104,7 @@ def get_faction(web, f_id, oc_interval):
                         c.execute("""update factionoc set money_gain=? where faction_id=? and oc_plan_id=?""", (oc[crimeplan]['money_gain'], f_id, crimeplan,))
                         c.execute("""update factionoc set respect_gain=? where faction_id=? and oc_plan_id=?""", (oc[crimeplan]['respect_gain'], f_id, crimeplan,))
                         c.execute("""update factionoc set time_executed=? where faction_id=? and oc_plan_id=?""", (int(time.time()), f_id, crimeplan,))
-                        c.execute("""update factionoc set et=? where faction_id=? and oc_plan_id=?""", (int(time.time()), f_id, crimeplan,))
+                        c.execute("""update factionoc set et=? where faction_id=? and oc_plan_id=?""", (t, f_id, crimeplan,))
                         print("Recording outcome of OC ", crimeplan)
                 else:
                     cx=oc[crimeplan]
@@ -113,6 +116,8 @@ def get_faction(web, f_id, oc_interval):
             #
             c.execute("""update factionwatch set latest_oc=? where faction_id=?""", (t, f_id,))
             conn.commit()
+        else:
+            print("Problem discovering faction crimes?  ", result)
 
     return "OK" # XXX TBC
 
@@ -239,7 +244,7 @@ def get_readiness(web, p_id):
 
 # START
 
-conn = sqlite3.connect('torn_db')
+conn = sqlite3.connect('/var/torn/torn_db')
 c = conn.cursor()
 conn.commit()
 

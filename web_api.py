@@ -46,8 +46,9 @@ class Tornapi:
         elif 'faction' == what:
             print("Suggestions: ", self.suggest_faction_key)
             if which in self.suggest_faction_key:
+                print("look for key in ", self.suggest_faction_key[which])
                 try:
-                    key_id = self.suggest_faction_key[faction_id].pop()
+                    key_id = self.suggest_faction_key[which].pop()
                 except:
                     return ["No key to query faction"]
         else:
