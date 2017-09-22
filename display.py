@@ -3,7 +3,8 @@
 import sqlite3
 import time
 import os
-import player_oc_history
+import hashlib
+import oc_history_to_text
 
 def seconds_text(s):
     if s < 180:
@@ -13,9 +14,18 @@ def seconds_text(s):
     else:
         return str(int(s/3600)) +'h'
 
-def prepare_player_stats(p_id, pid2name, page_time):
-    print("player data for ", p_id)
+def prepare_player_stats(p_id, pid2name, page_time, show_debug, fnamepre, weekno):
     blob = []
+    player_dname = hashlib.sha1(bytes('player-directory-for' + str(p_id) + fnamepre + str(weekno), 'utf-8')).hexdigest()
+    if show_debug:
+        print("player data for ", p_id)
+        print("use directory ", player_dname)
+
+    longdname='/srv/www/htdocs/player/' + player_dname
+    try:
+        mtime = os.stat(longdname).st_mtime
+    except:
+        os.mkdir(longdname)
 
     # produce OC list
     linebreak=''
@@ -26,9 +36,10 @@ def prepare_player_stats(p_id, pid2name, page_time):
     #
     if len(db_queue):
         # what should the name of the web page be?
-        dname='012345' # XXX secret precursor
-        hist=player_oc_history.Crime_history()
-        retlist = hist.crime2html(c, db_queue, pid2name, 1, 'player', dname, p_id)
+        hist=oc_history_to_text.Crime_history()
+        retlist = hist.crime2html(c, db_queue, pid2name, 1, 'player', player_dname, p_id, weekno)
+        if show_debug:
+            print(retlist)
         got_page = retlist[0]
         if got_page:
             # time parameter to help see whether a page has changed since you last loaded it in the browser
@@ -71,13 +82,13 @@ def prepare_player_stats(p_id, pid2name, page_time):
 
 
 #   PSTATS
-    pstats='jail ?<br/>bust ?<br/>failbust ?'
+    pstats='jail ?<br/>bust ?<br/>failbust ?<br/>hosp ?<br/>OD ?'
     stat_num = None
-    c.execute("""select  jailed,peoplebusted,failedbusts from pstats where player_id=? order by et""",(p_id,))
+    c.execute("""select  jailed,peoplebusted,failedbusts,hosp,od from pstats where player_id=? order by et""",(p_id,))
     for row in c:
         stat_num = row
     if stat_num:
-        pstats='jail ' + str(stat_num[0]) +  '<br/>bust ' + str(stat_num[1]) + '<br/>failbust ' + str(stat_num[2]) 
+        pstats='jail ' + str(stat_num[0]) +  '<br/>bust ' + str(stat_num[1]) + '<br/>failbust ' + str(stat_num[2]) + '<br/>hosp ' + str(stat_num[3]) + '<br/>OD ' + str(stat_num[4]) 
 
 #   IDLE TIME
     c.execute("""select  et,total from playercrimes where player_id=? order by et""",(p_id,))
@@ -142,10 +153,27 @@ def prepare_player_stats(p_id, pid2name, page_time):
     c.execute("""select name,level from namelevel where player_id=?""", (p_id,))
     for row in c:
         col1_answer = [row[0], p_id, row[1]]
+
+    pg_index=open("/torntmp/begin_graphs.html", "w")
+    print("<html><head></head><body>", file=pg_index)
+    print("Player data for ", col1_answer[0], file=pg_index)
+    #
+    print("<table border='1'>", file=pg_index)
+    print("<tr><th>Most days idle</br>(no crime)</th><th>OC success</th><th>event list</th></tr>", file=pg_index)
+    print("<tr><td>", blob[4], "</td><td>", blob[1], "</td><td>", blob[0], "</td></tr>", file=pg_index)
+    print("</table>", file=pg_index)
+    print("<p/>links to graphs coming soon", file=pg_index)
+    #
+    print("</body></html>", file=pg_index)
+    pg_index.close()
+    player_index = hashlib.sha1(bytes('player-index' + str(p_id) + fnamepre + str(weekno), 'utf-8')).hexdigest()
+    os.rename("/torntmp/begin_graphs.html",  "/srv/www/htdocs/player/" + player_dname +  "/" +  player_index + ".html")
+    col1_answer.append("/player/" + player_dname +  "/" +  player_index + ".html")
+
     blob.append(col1_answer)
     return blob
 
-def prepare_faction_stats(f_id):
+def prepare_faction_stats(f_id, fnamepre, weekno):
     page_time = int(time.time()) # seconds
     print("faction data for ", f_id)
     pid2name = {} # used while processing each player
@@ -156,19 +184,34 @@ def prepare_faction_stats(f_id):
         player_todo.append(p[0])
         pid2name[str(p[0])] = p[1]
 
+    n_player=0
     for p in player_todo:
-        f_data.append( prepare_player_stats(p, pid2name, page_time) )
+        show_debug = 0
+        if n_player < 3:
+            show_debug = 1
+        f_data.append( prepare_player_stats(p, pid2name, page_time, show_debug, fnamepre, weekno) )
+        n_player += 1
+    print(n_player, "players processed")
 
     f_data = sorted(f_data, key=lambda one: one[-1][1]) 
     f_data = sorted(f_data, key=lambda one: one[-1][2], reverse=True) 
 
-    
+
+    faction_name,faction_web = '?',None
+    c.execute("""select f_name,f_web from factiondisplay where f_id=?""", (f_id,))
+    for fdetails in c:
+        faction_name,faction_web = fdetails
+
     c.execute("""select latest_oc from factionwatch where faction_id=?""", (f_id,))
     for tt in c:
         oc_time = page_time - tt[0]
 
-    web=open("../web/output.html", "w")
-    print("<html><head></head><body><h2>Faction data</h2>", file=web)
+    faction_dname = hashlib.sha1(bytes('faction_variable_dir' + str(f_id) + fnamepre + str(weekno), 'utf-8')).hexdigest()
+
+    web=open("/torntmp/player_table.html", "w")
+    print("<html><head></head><body><h2>Faction Player Table:", file=web)
+    print(faction_name, f_id, file=web)
+    print("</h2>", file=web)
     print("<br/>Page created at ", time.strftime("%Y-%m-%d %H:%M", time.gmtime(page_time)), file=web)
     print("<br/>Faction organised crime data " + seconds_text(oc_time) + " old", file=web)
 # XXX      print("<br/>Faction membership data " + seconds_text(member_time) + " old", file=web)
@@ -180,7 +223,8 @@ def prepare_faction_stats(f_id):
     for item in f_data:
         q = item.pop()
         print("<tr><td>", file=web)
-        print(q[0] ,"<br/>", q[1], "<br/>", q[2], file=web)
+        print('<a href="', q[3], '">',  q[0], '</a>', file=web)
+        print('<br/>', q[1], '<br/>', q[2], file=web)
         print("</td><td>", file=web)
 
         q = item.pop()
@@ -224,15 +268,72 @@ def prepare_faction_stats(f_id):
     print("</table>", file=web)
     print("<body><html>", file=web)
     web.close()
-    os.rename("../web/output.html", "/srv/www/htdocs/faction/demo.html")
+
+    longdname='/srv/www/htdocs/faction/' + faction_dname
+    try:
+        mtime = os.stat(longdname).st_mtime
+    except:
+        os.mkdir(longdname)
+    faction_ptname = hashlib.sha1(bytes('faction_player_table' + str(f_id) + fnamepre + str(weekno), 'utf-8')).hexdigest()
+    os.unlink("/srv/www/htdocs/faction/demo.html")   # XXX
+    os.link("/torntmp/player_table.html", "/srv/www/htdocs/faction/demo.html")   # XXX
+    os.rename("/torntmp/player_table.html", "/srv/www/htdocs/faction/" +  faction_dname + '/'  + faction_ptname +  ".html")
+
+    crime_schedule=[]
+    c.execute("""select distinct crime_id from factionoc where faction_id=? order by crime_id desc""", (f_id,))
+    for row in c:
+        crime_schedule.append(row[0])
+    # Intro file
+    introdir='/srv/www/htdocs/intro/' + faction_web
+    try:
+        mtime = os.stat(introdir).st_mtime
+    except:
+        os.mkdir(introdir)
+    intro=open("/torntmp/index.html", "w")
+    print("<html><head></head><body><h2>Faction Intro Page: ", file=intro)
+    print(faction_name, f_id, file=intro)
+    print("</h2>", file=intro)
+    print("<br/>Page created at ", time.strftime("%Y-%m-%d %H:%M", time.gmtime(page_time)), file=intro)
+    print('<p/><a href="/faction/' +   faction_dname + '/'  + faction_ptname +  '.html' + '">Player Table</a>', file=intro)
+    print('<p/><hr>', file=intro)
+
+    print('<ul>', file=intro)
+    for crime_type in  crime_schedule:
+        db_queue = []
+        c.execute("""select distinct factionoc.crime_name,factionoc.initiated,factionoc.success,factionoc.time_completed,factionoc.time_executed,factionoc.participants,factionoc.money_gain,factionoc.respect_gain,factionoc.et from factionoc where factionoc.crime_id =? and factionoc.faction_id=? and factionoc.initiated=? order by time_completed desc""",(crime_type,f_id,1,))
+        for row in c:
+            db_queue.append(row)
+        #
+        if len(db_queue):
+            # what should the name of the web page be?
+            hist=oc_history_to_text.Crime_history()
+            retlist = hist.crime2html(c, db_queue, pid2name, 0, 'faction', faction_dname, crime_type, weekno)
+            got_page = retlist[0]
+            if got_page:
+                # time parameter to help see whether a page has changed since you last loaded it in the browser
+                print('<li>', crime_type, '<a href="' + retlist[1] +  '?t=' + str(retlist[2]) + '">' +  db_queue[0][0] + '</a></li>', file=intro)
+    print('</ul>', file=intro)
+    
+
+    print('<p/><hr>', file=intro)
+    print("</body></html>", file=intro)
+    intro.close()
+    os.rename("/torntmp/index.html", "/srv/www/htdocs/intro/" + faction_web +  "/index.html") # XXX
 
 
 ###################################################################################################
 
+#START
 
+weekno=int(time.time()/604800)
 conn = sqlite3.connect('/var/torn/torn_db')
 c = conn.cursor()
 conn.commit()
+
+fnamepre=None
+c.execute ("""select fnamepre from admin""")
+for row in c:
+    fnamepre=row[0]
 
 f_todo = {}
 f_ignore = {}
@@ -249,8 +350,11 @@ for f in f_ignore:
     if f in f_todo:
         del f_todo[f]
 
+n_faction=0
 for f in f_todo:
-    prepare_faction_stats(f)
+    prepare_faction_stats(f, fnamepre, weekno)
+    n_faction += 1
+print(n_faction, "factions processed")
 
 conn.commit()
 c.close()

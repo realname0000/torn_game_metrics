@@ -36,7 +36,7 @@ def get_player(web, p_id):
     if 'OK' == result[0]:
         ps = result[1]['personalstats']
         player_id_api = result[2]
-        c.execute("""insert into pstats values (?,?,?, ?,?,?)""", (t, player_id_api, p_id,  ps['jailed'], ps['peoplebusted'], ps['failedbusts'],))
+        c.execute("""insert into pstats values (?,?,?, ?,?,?, ?,?)""", (t, player_id_api, p_id,  ps['jailed'], ps['peoplebusted'], ps['failedbusts'],ps['hospital'],ps['overdosed'],))
         c.execute ("""update playerwatch set latest=? where player_id=?""", (t, p_id,))
         conn.commit()
     else:
@@ -78,6 +78,18 @@ def get_faction(web, f_id, oc_interval):
                 if player_faction_already[other_players] == f_id:
                     c.execute("""update playerwatch set faction_id=? where player_id=?""", (-1, other_players,))
             c.execute("""update factionwatch set latest_basic=? where faction_id=?""", (t, f_id,))
+            conn.commit()
+            # and check faction name
+            table_has=None
+            faction_name=result[1]['name']
+            c.execute("""SELECT f_name FROM factiondisplay where f_id=?""",(f_id,))
+            for row in c:
+                table_has=row[0]
+            if not table_has:
+                c.execute("""insert into factiondisplay values(?,?, ?,?)""", (t, f_id, faction_name, None))
+            if table_has != faction_name:
+                c.execute("""update factiondisplay set f_name=? where f_id=?""", (faction_name, f_id,))
+                c.execute("""update factiondisplay set et=? where f_id=?""", (t, f_id,))
             conn.commit()
         else:
             print("Problem discovering faction basic?  ", result)

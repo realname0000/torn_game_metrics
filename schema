@@ -7,7 +7,7 @@ CREATE TABLE playerwatch (
 CREATE TABLE playercrimes (
         et                                int,
         api_id                            int,
-        player_id                         intnot NULL,
+        player_id                         int not NULL,
         selling_illegal_products          int,
         theft                             int,
         auto_theft                        int,
@@ -76,5 +76,16 @@ CREATE TABLE pstats (
         player_id      int not NULL,
         jailed         int,
         peoplebusted   int,
-        failedbusts    int);
+        failedbusts    int, hosp int, od int);
+CREATE TABLE admin (
+        last_clean       int not NULL,
+        last_expire      int not NULL,
+        last_backup      int not NULL,
+        default_apikey   int,
+        fnamepre         text);
+CREATE TABLE factiondisplay (
+        et        int not NULL,
+        f_id      int not NULL  unique primary key,
+        f_name    text,
+        f_web     text);
 /* No STAT tables available */

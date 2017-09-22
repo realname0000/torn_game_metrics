@@ -4,17 +4,6 @@ import os
 import re
 import hashlib
 
-#   def show(self, who, finance):
-#       print("rhubarb",  who)
-#       for person in finance.keys():
-#           fname = "page_" + person + "_figures.html"
-#           try:
-#               mtime = os.stat(fname).st_mtime
-#               print( fname, " has timestamp ", mtime)
-#           except:
-#               webpage=open(fname, "w")
-#               print(person, ' gets ', finance[person], file=webpage)
-#               webpage.close()
 
 def html_clean(t):
     while 1:
@@ -60,7 +49,7 @@ class Crime_history:
     #        player or faction or other source?
     #        filename precursor
     #     player_id as p_id needed for status history
-    def crime2html(self, c, db_queue, pid2name, need_status, source_type, fname_pre, p_id):
+    def crime2html(self, c, db_queue, pid2name, need_status, source_type, dname, p_id, weekno):
         # return value is [ success/failure, the HREF of the web page, mtime of web page ]
         how_recent = 0
         for row in db_queue:
@@ -69,13 +58,30 @@ class Crime_history:
                 how_recent = et
 
         if ('player' == source_type) and p_id:
-            dname = hashlib.sha1(bytes(str(p_id) + fname_pre, 'utf-8')).hexdigest()
             longdname='/srv/www/htdocs/player/' + dname
             try:
                 mtime = os.stat(longdname).st_mtime
             except:
-                os.mkdir(longdname)
-            shortname='/player/' + dname + '/oc_history.txt'
+                return [0] # Directory should already exist
+            rfname = hashlib.sha1(bytes('oc_history'  + dname, 'utf-8')).hexdigest()
+            shortname='/player/' + dname + '/' +  rfname + '.txt'
+            longname='/srv/www/htdocs' + shortname
+            try:
+                mtime = os.stat(longname).st_mtime
+                if mtime > how_recent: # time-of-data
+                    # page exists, use it unchanged
+                    return [1, shortname, int(mtime)]
+            except:
+                pass # need to write file
+        elif ('faction' == source_type):
+            longdname='/srv/www/htdocs/faction/' + dname
+            try:
+                mtime = os.stat(longdname).st_mtime
+            except:
+                return [0] # Directory should already exist 
+            # abuse p_id for crime_id
+            rfname = hashlib.sha1(bytes('oc_history_list'  + dname + str(p_id), 'utf-8')).hexdigest()
+            shortname='/faction/' + dname + '/' +  rfname + '.txt'
             longname='/srv/www/htdocs' + shortname
             try:
                 mtime = os.stat(longname).st_mtime
@@ -101,7 +107,7 @@ class Crime_history:
             money=row[6]
             respect=row[7]
             et=row[8]
-                
+
             players= player_list.split(',')
             comma = ''
             namelist = ''
@@ -161,9 +167,9 @@ class Crime_history:
             crimes_planned = crimes_planned + '\n'
             linebreak='\n'
 
-        webpage=open("tmpfile", "w")
+        webpage=open("/torntmp/tmpfile_player_oc", "w")
         print(crimes_planned, file=webpage)
         webpage.close()
-        os.rename("tmpfile", longname)
+        os.rename("/torntmp/tmpfile_player_oc", longname)
         mtime = os.stat(longname).st_mtime
         return [1, shortname, int(mtime)]
