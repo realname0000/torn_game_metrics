@@ -1,43 +1,14 @@
 import sqlite3
 import time
 import os
-import re
 import hashlib
+import dehtml
 
 
-def html_clean(t):
-    while 1:
-        got = re.search( r'(^.*)</[a-zA-Z0-9 ]*>(.*)$', t)
-        if got:
-            # want to edit string
-            t=got.group(1)+got.group(2)
-            continue
-
-        got = re.search( r'(^.*)    *(.*)$', t)
-        if got:
-            # want to edit string
-            t=got.group(1)+' '+got.group(2)
-            continue
- 
-        got = re.search( r'(^.*)[\r\n](.*)$', t)
-        if got:
-            # want to edit string
-            t=got.group(1)+' '+got.group(2)
-            continue
- 
-        got = re.search( r'(^.*)<[a-zA-Z0-9 =.?]*>(.*)$', t)
-        if got:
-            # want to edit string
-            t=got.group(1)+got.group(2)
-            continue
-        else:
-            break
-    return t
-  
 class Crime_history:
 
-    def init():
-        pass
+    def __init__(self,docroot):
+        self.docroot = docroot
 
 
 
@@ -58,14 +29,14 @@ class Crime_history:
                 how_recent = et
 
         if ('player' == source_type) and p_id:
-            longdname='/srv/www/htdocs/player/' + dname
+            longdname = self.docroot  + 'player/' + dname
             try:
                 mtime = os.stat(longdname).st_mtime
             except:
                 return [0] # Directory should already exist
             rfname = hashlib.sha1(bytes('oc_history'  + dname, 'utf-8')).hexdigest()
-            shortname='/player/' + dname + '/' +  rfname + '.txt'
-            longname='/srv/www/htdocs' + shortname
+            shortname = '/player/' + dname + '/' +  rfname + '.txt'
+            longname =  self.docroot + shortname
             try:
                 mtime = os.stat(longname).st_mtime
                 if mtime > how_recent: # time-of-data
@@ -74,15 +45,15 @@ class Crime_history:
             except:
                 pass # need to write file
         elif ('faction' == source_type):
-            longdname='/srv/www/htdocs/faction/' + dname
+            longdname = self.docroot + 'faction/' + dname
             try:
                 mtime = os.stat(longdname).st_mtime
             except:
                 return [0] # Directory should already exist 
             # abuse p_id for crime_id
             rfname = hashlib.sha1(bytes('oc_history_list'  + dname + str(p_id), 'utf-8')).hexdigest()
-            shortname='/faction/' + dname + '/' +  rfname + '.txt'
-            longname='/srv/www/htdocs' + shortname
+            shortname = '/faction/' + dname + '/' +  rfname + '.txt'
+            longname =  self.docroot  + shortname
             try:
                 mtime = os.stat(longname).st_mtime
                 if mtime > how_recent: # time-of-data
@@ -139,11 +110,10 @@ class Crime_history:
                         c.execute("""select et,cur_nerve,max_nerve,status_0,status_1  from readiness where player_id=? and et>=? and et<?""",(p_id, t_first, time_executed,))
                         for player_history in c:
                             t_alibi,cur_nerve,max_nerve,status_0,status_1 = player_history
-                            status_0=html_clean(status_0)
-                            status_1=html_clean(status_1)
+                            frog = dehtml.Dehtml()
+                            status_0 = frog.html_clean(status_0)
+                            status_1 = frog.html_clean(status_1)
                             delta_t = t_alibi - time_completed # could be +ve or -ve
-                            # status_0 may need cleaning for HTML
-                            # status_1 may need cleaning for HTML
                             crimes_planned = crimes_planned + '\n' + player_name +  ' ' +  time.strftime("%H:%M", time.gmtime(t_alibi)) + ' T '
                             if delta_t < 0:
                                 crimes_planned = crimes_planned + 'minus '

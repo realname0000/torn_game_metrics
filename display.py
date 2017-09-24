@@ -5,6 +5,7 @@ import time
 import os
 import hashlib
 import oc_history_to_text
+import keep_files
 
 def seconds_text(s):
     if s < 180:
@@ -14,14 +15,17 @@ def seconds_text(s):
     else:
         return str(int(s/3600)) +'h'
 
-def prepare_player_stats(p_id, pid2name, page_time, show_debug, fnamepre, weekno):
+def prepare_player_stats(p_id, pid2name, page_time, show_debug, fnamepre, weekno, keeping_player, docroot):
     blob = []
+    old_player_dname = hashlib.sha1(bytes('player-directory-for' + str(p_id) + fnamepre + str(weekno-1), 'utf-8')).hexdigest()
     player_dname = hashlib.sha1(bytes('player-directory-for' + str(p_id) + fnamepre + str(weekno), 'utf-8')).hexdigest()
+    keeping_player.allow(old_player_dname)
+    keeping_player.allow(player_dname)
     if show_debug:
         print("player data for ", p_id)
         print("use directory ", player_dname)
 
-    longdname='/srv/www/htdocs/player/' + player_dname
+    longdname = docroot + 'player/' + player_dname
     try:
         mtime = os.stat(longdname).st_mtime
     except:
@@ -36,7 +40,7 @@ def prepare_player_stats(p_id, pid2name, page_time, show_debug, fnamepre, weekno
     #
     if len(db_queue):
         # what should the name of the web page be?
-        hist=oc_history_to_text.Crime_history()
+        hist=oc_history_to_text.Crime_history(docroot)
         retlist = hist.crime2html(c, db_queue, pid2name, 1, 'player', player_dname, p_id, weekno)
         if show_debug:
             print(retlist)
@@ -167,13 +171,13 @@ def prepare_player_stats(p_id, pid2name, page_time, show_debug, fnamepre, weekno
     print("</body></html>", file=pg_index)
     pg_index.close()
     player_index = hashlib.sha1(bytes('player-index' + str(p_id) + fnamepre + str(weekno), 'utf-8')).hexdigest()
-    os.rename("/torntmp/begin_graphs.html",  "/srv/www/htdocs/player/" + player_dname +  "/" +  player_index + ".html")
+    os.rename("/torntmp/begin_graphs.html",  docroot + "player/" + player_dname +  "/" +  player_index + ".html")
     col1_answer.append("/player/" + player_dname +  "/" +  player_index + ".html")
 
     blob.append(col1_answer)
     return blob
 
-def prepare_faction_stats(f_id, fnamepre, weekno):
+def prepare_faction_stats(f_id, fnamepre, weekno, keeping_faction, keeping_player, docroot):
     page_time = int(time.time()) # seconds
     print("faction data for ", f_id)
     pid2name = {} # used while processing each player
@@ -189,7 +193,7 @@ def prepare_faction_stats(f_id, fnamepre, weekno):
         show_debug = 0
         if n_player < 3:
             show_debug = 1
-        f_data.append( prepare_player_stats(p, pid2name, page_time, show_debug, fnamepre, weekno) )
+        f_data.append( prepare_player_stats(p, pid2name, page_time, show_debug, fnamepre, weekno, keeping_player, docroot) )
         n_player += 1
     print(n_player, "players processed")
 
@@ -206,7 +210,10 @@ def prepare_faction_stats(f_id, fnamepre, weekno):
     for tt in c:
         oc_time = page_time - tt[0]
 
+    old_faction_dname = hashlib.sha1(bytes('faction_variable_dir' + str(f_id) + fnamepre + str(weekno-1), 'utf-8')).hexdigest()
     faction_dname = hashlib.sha1(bytes('faction_variable_dir' + str(f_id) + fnamepre + str(weekno), 'utf-8')).hexdigest()
+    keeping_faction.allow(old_faction_dname)
+    keeping_faction.allow(faction_dname)
 
     web=open("/torntmp/player_table.html", "w")
     print("<html><head></head><body><h2>Faction Player Table:", file=web)
@@ -214,7 +221,7 @@ def prepare_faction_stats(f_id, fnamepre, weekno):
     print("</h2>", file=web)
     print("<br/>Page created at ", time.strftime("%Y-%m-%d %H:%M", time.gmtime(page_time)), file=web)
     print("<br/>Faction organised crime data " + seconds_text(oc_time) + " old", file=web)
-# XXX      print("<br/>Faction membership data " + seconds_text(member_time) + " old", file=web)
+    print("<p>The first and last colums contain clickable links.<p/>", file=web)
     print("<p/>", file=web)
 
     print("<table border='1'>", file=web)
@@ -269,22 +276,20 @@ def prepare_faction_stats(f_id, fnamepre, weekno):
     print("<body><html>", file=web)
     web.close()
 
-    longdname='/srv/www/htdocs/faction/' + faction_dname
+    longdname= docroot + 'faction/' + faction_dname
     try:
         mtime = os.stat(longdname).st_mtime
     except:
         os.mkdir(longdname)
     faction_ptname = hashlib.sha1(bytes('faction_player_table' + str(f_id) + fnamepre + str(weekno), 'utf-8')).hexdigest()
-    os.unlink("/srv/www/htdocs/faction/demo.html")   # XXX
-    os.link("/torntmp/player_table.html", "/srv/www/htdocs/faction/demo.html")   # XXX
-    os.rename("/torntmp/player_table.html", "/srv/www/htdocs/faction/" +  faction_dname + '/'  + faction_ptname +  ".html")
+    os.rename("/torntmp/player_table.html",  docroot + "faction/" +  faction_dname + '/'  + faction_ptname +  ".html")
 
     crime_schedule=[]
     c.execute("""select distinct crime_id from factionoc where faction_id=? order by crime_id desc""", (f_id,))
     for row in c:
         crime_schedule.append(row[0])
     # Intro file
-    introdir='/srv/www/htdocs/intro/' + faction_web
+    introdir = docroot + 'intro/' + faction_web
     try:
         mtime = os.stat(introdir).st_mtime
     except:
@@ -305,8 +310,7 @@ def prepare_faction_stats(f_id, fnamepre, weekno):
             db_queue.append(row)
         #
         if len(db_queue):
-            # what should the name of the web page be?
-            hist=oc_history_to_text.Crime_history()
+            hist=oc_history_to_text.Crime_history(docroot)
             retlist = hist.crime2html(c, db_queue, pid2name, 0, 'faction', faction_dname, crime_type, weekno)
             got_page = retlist[0]
             if got_page:
@@ -318,7 +322,7 @@ def prepare_faction_stats(f_id, fnamepre, weekno):
     print('<p/><hr>', file=intro)
     print("</body></html>", file=intro)
     intro.close()
-    os.rename("/torntmp/index.html", "/srv/www/htdocs/intro/" + faction_web +  "/index.html") # XXX
+    os.rename("/torntmp/index.html", docroot + "intro/" + faction_web +  "/index.html")
 
 
 ###################################################################################################
@@ -350,11 +354,17 @@ for f in f_ignore:
     if f in f_todo:
         del f_todo[f]
 
+docroot='/srv/www/htdocs/'
+keep_this_faction_htdoc = keep_files.Keep(docroot + 'faction')
+keep_this_player_htdoc = keep_files.Keep(docroot + 'player')
 n_faction=0
 for f in f_todo:
-    prepare_faction_stats(f, fnamepre, weekno)
+    prepare_faction_stats(f, fnamepre, weekno, keep_this_faction_htdoc, keep_this_player_htdoc, docroot)
     n_faction += 1
 print(n_faction, "factions processed")
 
 conn.commit()
 c.close()
+
+keep_this_faction_htdoc.exterminate()
+keep_this_player_htdoc.exterminate()

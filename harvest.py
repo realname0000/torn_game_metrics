@@ -5,6 +5,7 @@ import sqlite3
 import time
 # import signal
 import web_api
+import dehtml
 
 t_start_finegrain=time.time()
 
@@ -16,7 +17,7 @@ def get_player(web, p_id):
     t=int (time.time())
     c.execute ("""select latest,ignore from playerwatch where player_id=?""",(p_id,))
     for row in c:
-        if row[0]+player_crime_timestep > t:  # XXX variable
+        if row[0]+player_crime_timestep > t:
             return "TOO RECENT"
         if row[1]:
             return "IGNORE THIS PLAYER"
@@ -240,6 +241,9 @@ def get_readiness(web, p_id):
     conn.commit()
     if 'OK' == result[0]:
         q1_data = result[1]
+        frog=dehtml.Dehtml()
+        q1_data['status'][0]  = frog.html_clean(q1_data['status'][0])
+        q1_data['status'][1]  = frog.html_clean(q1_data['status'][1])
     else:
         return "Fail"
     # and find nerve if possible
