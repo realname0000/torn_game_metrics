@@ -88,4 +88,13 @@ CREATE TABLE factiondisplay (
         f_id      int not NULL  unique primary key,
         f_name    text,
         f_web     text);
+CREATE TABLE compare (
+        f_id           int not NULL,
+        oc_a           int not NULL,
+        oc_b           int not NULL,
+        player_a       int not NULL,
+        player_b       int not NULL);
+CREATE TABLE player_compare_t (
+        player_id       int primary key not NULL,
+        et              int not NULL);
 /* No STAT tables available */

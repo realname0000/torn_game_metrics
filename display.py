@@ -317,6 +317,21 @@ def prepare_faction_stats(f_id, fnamepre, weekno, keeping_faction, keeping_playe
                 # time parameter to help see whether a page has changed since you last loaded it in the browser
                 print('<li>', crime_type, '<a href="' + retlist[1] +  '?t=' + str(retlist[2]) + '">' +  db_queue[0][0] + '</a></li>', file=intro)
     print('</ul>', file=intro)
+    print('<p/><hr>', file=intro)
+
+
+    store_for_analytics = {}
+    c.execute("""select distinct oc_plan_id,crime_name,success,time_executed,participants,money_gain,respect_gain from factionoc where faction_id=? and initiated=?""",(f_id,1,))
+    for row in c:
+        store_for_analytics[row[0]] = row
+
+    c.execute("""select oc_a,oc_b,player_a,player_b from compare where f_id=?""",(f_id,))
+    for row in c:
+        print("player ", row[2] , " vs. player ", row[3])
+        print(store_for_analytics[row[0]])
+        print(store_for_analytics[row[1]])
+        print("\n")
+        
     
 
     print('<p/><hr>', file=intro)

@@ -1,11 +1,10 @@
 #!/usr/bin/python3
 
-# import requests
 import sqlite3
 import time
-# import signal
 import web_api
 import dehtml
+import oc_analytics
 
 t_start_finegrain=time.time()
 
@@ -98,15 +97,16 @@ def get_faction(web, f_id, oc_interval):
     if latest_oc+oc_interval < t:  # comparing latest_basic
         print("plan to query faction ", repr(f_id) , " for CRIMES")
         # Now do faction crimes - OC
-        result = web.torn('faction', 11581, 'crimes')
+        result = web.torn('faction', f_id, 'crimes')
         conn.commit()
         if 'OK' == result[0]:
             oc=result[1]['crimes']
             player_id_api = result[2]
-            c.execute("""SELECT oc_plan_id,time_started,initiated FROM factionoc where faction_id=?""", (f_id,))
+            c.execute("""SELECT oc_plan_id,time_started,initiated,participants FROM factionoc where faction_id=?""", (f_id,))
             oc_plan_already = {}
             for row in c:
                 oc_plan_already[str(row[0])] = row  # needs string key
+            analytics = oc_analytics.Compare(c, f_id)
             for crimeplan in oc:
                 if crimeplan in oc_plan_already:
                     if  oc[crimeplan]['time_started'] != oc_plan_already[crimeplan][1]:
@@ -118,6 +118,9 @@ def get_faction(web, f_id, oc_interval):
                         c.execute("""update factionoc set respect_gain=? where faction_id=? and oc_plan_id=?""", (oc[crimeplan]['respect_gain'], f_id, crimeplan,))
                         c.execute("""update factionoc set time_executed=? where faction_id=? and oc_plan_id=?""", (int(time.time()), f_id, crimeplan,))
                         c.execute("""update factionoc set et=? where faction_id=? and oc_plan_id=?""", (t, f_id, crimeplan,))
+                        participants = oc_plan_already[crimeplan][3]
+                        players = participants.split(',')
+                        analytics.ingest(f_id, crimeplan, oc[crimeplan]['crime_id'], players)
                         print("Recording outcome of OC ", crimeplan)
                 else:
                     cx=oc[crimeplan]
@@ -128,6 +131,7 @@ def get_faction(web, f_id, oc_interval):
                     print("Storing new OC ", crimeplan)
             #
             c.execute("""update factionwatch set latest_oc=? where faction_id=?""", (t, f_id,))
+            analytics.examine()
             conn.commit()
         else:
             print("Problem discovering faction crimes?  ", result)
