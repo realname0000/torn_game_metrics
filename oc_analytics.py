@@ -61,7 +61,7 @@ class Compare:
                         print("Error performing analytics")
                         continue
                     #
-                    if add_this[0] < add_this[0]:
+                    if add_this[0] < add_this[1]:
                         self.c.execute("""delete from compare where f_id=? and oc_a=? and oc_b=?""", (f_id, add_this[0], add_this[1],))
                         self.c.execute("""insert into compare values (?, ?,?, ?,?)""", (f_id, add_this[0], add_this[1], two[0], two[1]))
                     else:
