@@ -39,7 +39,7 @@ class Crime_history:
             longname =  self.docroot + shortname
             try:
                 mtime = os.stat(longname).st_mtime
-                if mtime > how_recent: # time-of-data
+                if int(mtime) > int(how_recent): # time-of-data
                     # page exists, use it unchanged
                     return [1, shortname, int(mtime)]
             except:
@@ -56,16 +56,15 @@ class Crime_history:
             longname =  self.docroot  + shortname
             try:
                 mtime = os.stat(longname).st_mtime
-                if mtime > how_recent: # time-of-data
+                if int(mtime) > int(how_recent): # time-of-data
                     # page exists, use it unchanged
                     return [1, shortname, int(mtime)]
+                # need to write file becaue it is too old
             except:
-                pass # need to write file
+                pass # need to write file becaue it does not exist
         else:
             return [0]
         #
-        # If the web page already exists and is up to date return immediately
-        # else open and write temp web page then rename it
         crimes_planned = ''
         linebreak=''
         for row in db_queue:

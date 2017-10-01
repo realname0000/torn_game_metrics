@@ -219,7 +219,7 @@ def prepare_faction_stats(f_id, fnamepre, weekno, keeping_faction, keeping_playe
             show_debug = 1
         my_oc_cf = []
         for pair in all_oc_cf:
-            if pair[3] == p:
+            if int(pair[3]) == int(p):
                 # coerce tuple into list
                 notflipped = [pair[0], pair[1], pair[2], pair[3], pair[4]]
                 my_oc_cf.append(notflipped)

@@ -22,7 +22,7 @@ class Crime_compare:
 
     def load(self, c, my_oc_cf, pid2name, p_id, cf):
         self.queue = []
-        seen_left = {}
+        seen_left = {} # debugging info to catch duplicates
         for oc_pair in my_oc_cf:
             f_id = oc_pair[0]
             oc_a = oc_pair[1]
@@ -36,13 +36,14 @@ class Crime_compare:
                 seen_left[oc_a] = [oc_b]
             player_1 = oc_pair[3]
             player_2 = oc_pair[4]
-            if p_id != player_1:
+            if int(p_id) != int(player_1):
                 print("error with missing player ", p_id, player_1)
                 continue
-            if cf != player_2:
+            if int(cf) != int(player_2):
                 continue  # ok to miss this
             line = []
-            for oc_plan in [oc_b, oc_a]:  # XXX why are thee this way round?
+            bug1 = 0
+            for oc_plan in [oc_a, oc_b]:  # XXX Why have these sometimes been the wrong way round?
                 gang=''
                 details = self.one_oc(c, f_id, oc_plan)
                 time_executed = time.strftime("%Y-%m-%d %H:%M", time.gmtime(details[0]))
@@ -53,12 +54,18 @@ class Crime_compare:
                 money_gain = details[4]
                 respect_gain = details[5]
                 for p in participants.split(','):
+                    if (int(p_id) == int(p)):
+                        if bug1:
+                            print("OC pair wrong way round for player: ", oc_pair, p_id )
+                        else:
+                            print("OC pair right way round for player: ", oc_pair, p_id )
                     if p in pid2name:
                         gang +=  pid2name[p] + '[' + p + '] '
                     else:
                         gang += '?[' + p + '] '
                 stuff =  str(oc_plan) +  ' at time ' +  str(time_executed) + '<br/> ' +  str(crime_name) + ' by '  +   gang + '<br/> money=' + str(money_gain) + ' respect=' + str(respect_gain)
                 line.append(stuff)
+                bug1 = 1
             self.queue.append(line)
         
 
@@ -124,7 +131,7 @@ class Crime_compare:
         longname =  self.docroot + shortname
         try:
             mtime = os.stat(longname).st_mtime
-            if mtime > how_recent: # time-of-data
+            if int(mtime) > int(how_recent): # time-of-data
                 # page exists, use it unchanged
                 return [1, shortname, int(mtime)]
         except:
@@ -145,6 +152,7 @@ class Crime_compare:
                 which_others[row[4]]=1
             elif str(row[4]) == str(p_id):
                 which_others[row[3]]=1
+        print("Other players related to ", p_id, " are:", which_others)
 
         for cf in which_others:
             if str(cf) in pid2name:

@@ -60,13 +60,13 @@ class Compare:
                     else:
                         print("Error performing analytics")
                         continue
-                    #
-                    if add_this[0] < add_this[1]:
+                    # Conversion to int in case these have become strings
+                    if int(add_this[0]) < int(add_this[1]):
                         self.c.execute("""delete from compare where f_id=? and oc_a=? and oc_b=?""", (f_id, add_this[0], add_this[1],))
                         self.c.execute("""insert into compare values (?, ?,?, ?,?)""", (f_id, add_this[0], add_this[1], two[0], two[1]))
                     else:
                         self.c.execute("""delete from compare where f_id=? and oc_a=? and oc_b=?""", (f_id, add_this[1], add_this[0],))
-                        self.c.execute("""insert into compare values (?, ?,?, ?,?)""", (f_id, add_this[1], add_this[0], two[0], two[1]))
+                        self.c.execute("""insert into compare values (?, ?,?, ?,?)""", (f_id, add_this[1], add_this[0], two[1], two[0]))
 
                     self.c.execute("""delete from player_compare_t where player_id=?""", (two[0],))
                     self.c.execute("""delete from player_compare_t where player_id=?""", (two[1],))
