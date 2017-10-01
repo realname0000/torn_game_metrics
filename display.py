@@ -359,6 +359,7 @@ def prepare_faction_stats(f_id, fnamepre, weekno, keeping_faction, keeping_playe
         store_for_analytics[row[0]] = row
 
 
+    print('<p/><a href="/docs/">Site documentation</a>', file=intro)
     print('<p/><hr>', file=intro)
     print("</body></html>", file=intro)
     intro.close()
