@@ -16,7 +16,7 @@ def seconds_text(s):
     else:
         return str(int(s/3600)) +'h'
 
-def prepare_player_stats(p_id, pid2name, page_time, show_debug, fnamepre, weekno, keeping_player, docroot, my_oc_cf):
+def prepare_player_stats(p_id, pid2name, page_time, show_debug, fnamepre, weekno, keeping_player, docroot, my_oc_cf, appleorange):
     blob = []
     old_player_dname = hashlib.sha1(bytes('player-directory-for' + str(p_id) + fnamepre + str(weekno-1), 'utf-8')).hexdigest()
     player_dname = hashlib.sha1(bytes('player-directory-for' + str(p_id) + fnamepre + str(weekno), 'utf-8')).hexdigest()
@@ -35,7 +35,6 @@ def prepare_player_stats(p_id, pid2name, page_time, show_debug, fnamepre, weekno
     # produce OC comparison for this player
     oc_cf_link = None
     if len(my_oc_cf):
-        appleorange=oc_cf_web.Crime_compare(docroot)
         retlist = appleorange.web(c, my_oc_cf, pid2name, player_dname, p_id, weekno)
         if show_debug:
             print(retlist)
@@ -203,7 +202,7 @@ def prepare_faction_stats(f_id, fnamepre, weekno, keeping_faction, keeping_playe
             print("Crime order problem in compare ", row)
             continue
         all_oc_cf.append(row)
-    
+
     pid2name = {} # used while processing each player
     f_data = []
     c.execute("""select playerwatch.player_id,namelevel.name from playerwatch,namelevel where playerwatch.faction_id=? and  playerwatch.player_id=namelevel.player_id""", (f_id,))
@@ -212,6 +211,7 @@ def prepare_faction_stats(f_id, fnamepre, weekno, keeping_faction, keeping_playe
         player_todo.append(p[0])
         pid2name[str(p[0])] = p[1]
 
+    appleorange=oc_cf_web.Crime_compare(docroot)
     n_player=0
     for p in player_todo:
         show_debug = 0
@@ -226,7 +226,7 @@ def prepare_faction_stats(f_id, fnamepre, weekno, keeping_faction, keeping_playe
             elif pair[4] == p:
                 flipped = [pair[0], pair[2], pair[1], pair[4], pair[3]]
                 my_oc_cf.append(flipped)
-        f_data.append( prepare_player_stats(p, pid2name, page_time, show_debug, fnamepre, weekno, keeping_player, docroot, my_oc_cf) )
+        f_data.append( prepare_player_stats(p, pid2name, page_time, show_debug, fnamepre, weekno, keeping_player, docroot, my_oc_cf, appleorange) )
         n_player += 1
     print(n_player, "players processed")
 

@@ -43,7 +43,7 @@ class Crime_compare:
                 continue  # ok to miss this
             line = []
             bug1 = 0
-            for oc_plan in [oc_a, oc_b]:  # XXX Why have these sometimes been the wrong way round?
+            for oc_plan in [oc_a, oc_b]:
                 gang=''
                 details = self.one_oc(c, f_id, oc_plan)
                 time_executed = time.strftime("%Y-%m-%d %H:%M", time.gmtime(details[0]))
