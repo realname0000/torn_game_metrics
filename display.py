@@ -7,6 +7,7 @@ import hashlib
 import oc_history_to_text
 import oc_cf_web
 import keep_files
+import player_graphs
 
 def seconds_text(s):
     if s < 180:
@@ -180,7 +181,11 @@ def prepare_player_stats(p_id, pid2name, page_time, show_debug, fnamepre, weekno
     print("<tr><th>Most days idle</br>(no crime)</th><th>OC success</th><th>event list</th></tr>", file=pg_index)
     print("<tr><td>", blob[4], "</td><td>", blob[1], "</td><td>", blob[0], "</td></tr>", file=pg_index)
     print("</table>", file=pg_index)
-    print("<p/>links to graphs coming soon", file=pg_index)
+    #
+    graph_action=player_graphs.Draw_graph(docroot, c, weekno, player_dname)
+    graph_urls = graph_action.player(pid2name, p_id)
+    for gu in graph_urls:
+        print('<br/><img src="' + gu + '" alt="timeseries graph">', file=pg_index)
     #
     print("</body></html>", file=pg_index)
     pg_index.close()
