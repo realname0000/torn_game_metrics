@@ -69,6 +69,7 @@ class Draw_graph:
                 try:
                     mtime = os.stat(long_fname).st_mtime
                     if mtime > last_x:
+                        urls.append('/' + short_fname)
                         continue # no need to redraw graph
                 except:
                     pass
