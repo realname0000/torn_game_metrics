@@ -146,16 +146,37 @@ def get_faction(web, f_id, oc_interval):
     conn.commit()
 
 def expire_old_data():
-    year_ago= int (time.time()) - (86400 * 365)
+    now = int (time.time())
+    day_ago = now - 86400
+    c.execute ("""select last_expire from admin""",)
+    for when in c:
+        if when[0] > day_ago:
+            return
+    year_ago = now - (86400 * 365)
     c.execute("""delete from playercrimes where et<?""", (year_ago,))
     c.execute("""delete from readiness where et<?""", (year_ago,))
+    c.execute("""delete from pstats where et<?""", (year_ago,))
     # These next ones are more complicated because of foreign keys.
-    c.execute("""delete from factionoc where et<?""", (year_ago,))
-    c.execute("""delete from whodunnit where et<?""", (year_ago,))
+    c.execute("""select oc_plan_id from factionoc where et<?""", (year_ago,))
+    oc_to_del = []
+    for row in c:
+        print("TBC: Going to delete oc ", row[0])
+        oc_to_del.append(row[0])
+    #  delete from whodunnit
+    #  delete from compare
+    #  delete from factionoc
+    c.execute ("""update admin set last_expire = ?""",(now,))
     conn.commit()
 
 
 def clean_data():
+    now = int (time.time())
+    day_ago = now - 86400
+    c.execute ("""select last_clean from admin""",)
+    for when in c:
+        if when[0] > day_ago:
+            return
+
     #  remove duplication if present in factionwatch
     for ignore in [0,1]:
         faction = {}
@@ -173,6 +194,7 @@ def clean_data():
             else:
                 # store data on a faction the first time we see it
                 faction[faction_id] = {player_id:[row]}
+        c.execute ("""update admin set last_clean = ?""",(now,))
         for f in faction:
             for p in faction[f]:
                 list_length = len( faction[f][p] )

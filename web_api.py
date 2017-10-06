@@ -12,6 +12,11 @@ class Tornapi:
         self.good_faction_key = {}
         self.suggest_faction_key = {}
         self.pid2ak = {}
+        self.default_apikey = None
+        #
+        c.execute ("""select default_apikey from admin""")
+        for row in c:
+            self.default_apikey = row[0]
         #
         c.execute ("""select player_id,short_err,long_err,key  from apikeys""")
         for row in c:
@@ -56,7 +61,7 @@ class Tornapi:
     
         if not key_id:
             print("Taking key of last resort ...")
-            key_id = 1338804 # XXX XXX XXX XXX XXX
+            key_id = self.default_apikey
 
         if key_id in self.pid2ak:
             ak = self.pid2ak[key_id]
