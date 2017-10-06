@@ -29,10 +29,12 @@ class Draw_graph:
             xx = []
             yy = []
             y2 = []
+            last_x = 0
             nonzero_data = 0
             if 'nerve' == subject:
                 self.c.execute("""select et,cur_nerve,max_nerve from readiness where player_id=? order by et""",(p_id,))
                 for row in self.c:
+                    last_x = int(row[0])
                     xx.append(datetime.date.fromtimestamp(int(row[0])))
                     yy.append(int(row[1]))
                     y2.append(int(row[2]))
@@ -41,6 +43,7 @@ class Draw_graph:
             elif 'jail' == subject:
                 self.c.execute("""select et,jailed from pstats where player_id=? order by et""",(p_id,))
                 for row in self.c:
+                    last_x = int(row[0])
                     xx.append(datetime.date.fromtimestamp(int(row[0])))
                     yy.append(int(row[1]))
                     if row[1]:
@@ -48,6 +51,7 @@ class Draw_graph:
             elif 'total_crime' == subject:
                 self.c.execute("""select et,total from playercrimes where player_id=? order by et""",(p_id,))
                 for row in self.c:
+                    last_x = int(row[0])
                     xx.append(datetime.date.fromtimestamp(int(row[0])))
                     yy.append(int(row[1]))
                     if row[1]:
@@ -60,6 +64,13 @@ class Draw_graph:
                     player_name = pid2name[str(p_id)]
                 player_name = player_name + '[' + str(p_id) + ']'
                 graphname = hashlib.sha1(bytes('player-graph-for' + str(p_id) + self.player_dname + subject, 'utf-8')).hexdigest()
-                short_fname="player/" + self.player_dname +  "/" +  graphname + ".png"
+                short_fname ="player/" + self.player_dname +  "/" +  graphname + ".png"
+                long_fname = self.docroot + short_fname
+                try:
+                    mtime = os.stat(long_fname).st_mtime
+                    if mtime > last_x:
+                        continue # no need to redraw graph
+                except:
+                    pass
                 urls.append(self.one_graph(xx, yy, y2, short_fname, subject, player_name))
         return urls
