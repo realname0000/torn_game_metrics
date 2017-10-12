@@ -147,7 +147,6 @@ class Crime_compare:
                 which_others[row[4]]=1
             elif str(row[4]) == str(p_id):
                 which_others[row[3]]=1
-        print("Other players related to ", p_id, " are:", which_others)
 
         for cf in which_others:
             if str(cf) in pid2name:

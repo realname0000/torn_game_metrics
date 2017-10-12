@@ -108,7 +108,7 @@ class Tornapi:
             code = e['code']
             error_msg = e['error']
             et = int(time.time())
-            self.c.execute("""insert into error values (?,?,?,?, ?,?,?,?)""",
+            self.c.execute("""insert into error values (?,?,?,?, ?,?,?)""",
                      (et,key_id,what,which,how,code,error_msg,))
             # short key ban for 5  (7 if faction) 
             # long key ban      1  2  10

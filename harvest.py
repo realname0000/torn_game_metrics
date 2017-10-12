@@ -160,11 +160,13 @@ def expire_old_data():
     c.execute("""select oc_plan_id from factionoc where et<?""", (year_ago,))
     oc_to_del = []
     for row in c:
-        print("TBC: Going to delete oc ", row[0])
+        print("Deleting oc ", row[0])
         oc_to_del.append(row[0])
-    #  delete from whodunnit
-    #  delete from compare
-    #  delete from factionoc
+    for oc in oc_to_del:
+         c.execute("""delete from whodunnit where oc_plan_id=?""", (oc,))
+         c.execute("""delete from compare where oc_a=?""", (oc,))
+         c.execute("""delete from compare where oc_b=?""", (oc,))
+         c.execute("""delete from factionoc where oc_plan_id=?""", (oc,))
     c.execute ("""update admin set last_expire = ?""",(now,))
     conn.commit()
 
