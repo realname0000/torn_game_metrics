@@ -54,11 +54,6 @@ class Crime_compare:
                 money_gain = details[4]
                 respect_gain = details[5]
                 for p in participants.split(','):
-                    if (int(p_id) == int(p)):
-                        if bug1:
-                            print("OC pair wrong way round for player: ", oc_pair, p_id )
-                        else:
-                            print("OC pair right way round for player: ", oc_pair, p_id )
                     if p in pid2name:
                         gang +=  pid2name[p] + '[' + p + '] '
                     else:

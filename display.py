@@ -327,6 +327,10 @@ def prepare_faction_stats(f_id, fnamepre, weekno, keeping_faction, keeping_playe
     for row in c:
         crime_schedule.append(row[0])
     # Intro file
+    if not docroot:
+        print("HELP - docroot is not defined")
+    if not faction_web:
+        print("HELP - faction_web is not defined")
     introdir = docroot + 'intro/' + faction_web
     try:
         mtime = os.stat(introdir).st_mtime
@@ -385,20 +389,13 @@ c.execute ("""select fnamepre from admin""")
 for row in c:
     fnamepre=row[0]
 
+# display does not use the factionwatch.ignore column
 f_todo = {}
-f_ignore = {}
 c.execute ("""select  faction_id,latest_basic,latest_oc,ignore,player_id  from factionwatch""")
 for row in c:
-        if (row[3]):
-            f_ignore[row[0]] = 1
-            continue
         if not row[0] in f_todo:
             f_todo[row[0]] = []
         f_todo[row[0]].append(row[4])
-
-for f in f_ignore:
-    if f in f_todo:
-        del f_todo[f]
 
 docroot='/srv/www/htdocs/'
 keep_this_faction_htdoc = keep_files.Keep(docroot + 'faction')
