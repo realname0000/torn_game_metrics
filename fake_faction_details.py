@@ -71,6 +71,30 @@ def populate_faction(c, f_id):
         conn.commit()
 
 
+def player_stats(c, players):
+    now = int(time.time())
+    for p_id in players:
+        c.execute("""select et,jailed,peoplebusted,failedbusts,hosp,od from pstats where player_id=? and et=(select max(et) from pstats where player_id=?)""", (p_id, p_id,))
+        stats = []
+        for row in c:
+            for i in row:
+                stats.append(i)
+        if not len(stats):
+            stats = [now-90000, 0,0,0,0,0, 0, 0]
+        if stats[0] > now:
+            continue
+        elif (now - stats[0]) > 604800:
+            stats[0] += 432000
+        else:
+            stats[0] = now
+        # random additions
+        for i in range(1,len(stats)):
+            if (random.random() > 0.3):
+                stats[i] += 1
+        c.execute("""insert into pstats values(?,?,?,?, ?,?,?,?)""", (stats[0], 0, p_id, stats[1],  stats[2], stats[3], stats[4], stats[5],))
+    conn.commit()
+
+
 def playercrime(c, players):
     for p_id in players:
         c.execute("""select et,api_id,player_id,selling_illegal_products,theft,auto_theft,drug_deals,computer_crimes,murder,fraud_crimes,other,total from playercrimes where player_id=? and et=(select max(et) from playercrimes where player_id=?)""", (p_id, p_id,))
@@ -216,6 +240,7 @@ for f_id in [-99]:
         populate_faction(c, f_id)
         continue
     playercrime(c, players)
+    player_stats(c, players)
     reap_oc(c, f_id)
     sow_oc(c, f_id, players)
 
