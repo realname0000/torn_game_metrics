@@ -110,7 +110,7 @@ def prepare_player_stats(p_id, pid2name, page_time, show_debug, fnamepre, weekno
         pstats='jail ' + str(stat_num[0]) +  '<br/>bust ' + str(stat_num[1]) + '<br/>failbust ' + str(stat_num[2]) + '<br/>hosp ' + str(stat_num[3]) + '<br/>OD ' + str(stat_num[4]) 
 
 #   IDLE TIME
-    c.execute("""select  et,total from playercrimes where player_id=? order by et""",(p_id,))
+    c.execute("""select et,total from playercrimes where player_id=? order by et""",(p_id,))
     was, when, one_interval, longest_interval = 0,0,0,0 # activity
     for row in c:
         if row[1] == was:
