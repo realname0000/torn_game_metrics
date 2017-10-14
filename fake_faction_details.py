@@ -114,6 +114,9 @@ def playercrime(c, players):
         elif (now-et)  < 604800:
             # recent times mean traet it as now
             et = now
+            crimedata[0] = now
+        else:
+            crimedata[0] += (86400 * 5)
         #
         r= int(random.random() * 8)    
         increase = int( 288/how_many_points[r] )
