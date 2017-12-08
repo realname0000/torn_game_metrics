@@ -6,6 +6,13 @@ class Keep:
     def __init__(self, start_pathname):
         self.start_pathname = start_pathname
         self.keep_these = {}
+        self.iddict = {}
+
+    def gotid(self,pid):
+        self.iddict[pid] = 1
+
+    def showid(self):
+        return self.iddict.keys()
 
     def allow(self,subdirectory):
         self.keep_these[subdirectory] = 1

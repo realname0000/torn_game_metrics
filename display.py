@@ -21,6 +21,7 @@ def prepare_player_stats(p_id, pid2name, page_time, show_debug, fnamepre, weekno
     blob = []
     old_player_dname = hashlib.sha1(bytes('player-directory-for' + str(p_id) + fnamepre + str(weekno-1), 'utf-8')).hexdigest()
     player_dname = hashlib.sha1(bytes('player-directory-for' + str(p_id) + fnamepre + str(weekno), 'utf-8')).hexdigest()
+    keeping_player.gotid(p_id)
     keeping_player.allow(old_player_dname)
     keeping_player.allow(player_dname)
     if show_debug:
@@ -406,8 +407,22 @@ for f in f_todo:
     n_faction += 1
 print(n_faction, "factions processed")
 
-conn.commit()
-c.close()
+watch = {}
+c.execute ("""select player_id,ignore,latest from playerwatch""")
+for row in c:
+    pid,ign,latest=row[0],row[1],row[2]
+    if not ign:
+        watch[pid] = latest
 
 keep_this_faction_htdoc.exterminate()
 keep_this_player_htdoc.exterminate()
+
+p_already = keep_this_player_htdoc.showid()
+
+for pid in watch.keys():
+    if pid in p_already:
+        continue
+    c.execute ("""delete from playerwatch where player_id = ?""", (pid,))
+
+conn.commit()
+c.close()
