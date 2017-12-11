@@ -25,7 +25,7 @@ class Draw_graph:
 
     def player(self, pid2name, p_id):
         urls = []
-        for subject in ('nerve', 'jail', 'total_crime'):
+        for subject in ('nerve', 'peoplebusted', 'jail', 'total_crime'):
             xx = []
             yy = []
             y2 = []
@@ -39,6 +39,14 @@ class Draw_graph:
                     yy.append(int(row[1]))
                     y2.append(int(row[2]))
                     if row[1] or row[2]:
+                        nonzero_data = 1
+            elif 'peoplebusted' == subject:
+                self.c.execute("""select et,peoplebusted from pstats where player_id=? order by et""",(p_id,))
+                for row in self.c:
+                    last_x = int(row[0])
+                    xx.append(datetime.date.fromtimestamp(int(row[0])))
+                    yy.append(int(row[1]))
+                    if row[1]:
                         nonzero_data = 1
             elif 'jail' == subject:
                 self.c.execute("""select et,jailed from pstats where player_id=? order by et""",(p_id,))
