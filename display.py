@@ -48,7 +48,7 @@ def prepare_player_stats(p_id, pid2name, page_time, show_debug, fnamepre, weekno
     # produce OC list for this player
     linebreak=''
     db_queue = []
-    c.execute("""select factionoc.crime_name,factionoc.initiated,factionoc.success,factionoc.time_completed,factionoc.time_executed,factionoc.participants,factionoc.money_gain,factionoc.respect_gain,factionoc.et from factionoc,whodunnit where factionoc.oc_plan_id = whodunnit.oc_plan_id and  whodunnit.player_id = ? order by time_completed desc""",(p_id,))
+    c.execute("""select factionoc.crime_name,factionoc.initiated,factionoc.success,factionoc.time_completed,factionoc.time_executed,factionoc.participants,factionoc.money_gain,factionoc.respect_gain,factionoc.et,factionoc.time_ready from factionoc,whodunnit where factionoc.oc_plan_id = whodunnit.oc_plan_id and  whodunnit.player_id = ? order by time_ready desc""",(p_id,))
     for row in c:
         db_queue.append(row)
     #
@@ -348,7 +348,7 @@ def prepare_faction_stats(f_id, fnamepre, weekno, keeping_faction, keeping_playe
     print('<ul>', file=intro)
     for crime_type in  crime_schedule:
         db_queue = []
-        c.execute("""select distinct factionoc.crime_name,factionoc.initiated,factionoc.success,factionoc.time_completed,factionoc.time_executed,factionoc.participants,factionoc.money_gain,factionoc.respect_gain,factionoc.et from factionoc where factionoc.crime_id =? and factionoc.faction_id=? and factionoc.initiated=? order by time_completed desc""",(crime_type,f_id,1,))
+        c.execute("""select distinct factionoc.crime_name,factionoc.initiated,factionoc.success,factionoc.time_completed,factionoc.time_executed,factionoc.participants,factionoc.money_gain,factionoc.respect_gain,factionoc.et,factionoc.time_ready from factionoc where factionoc.crime_id =? and factionoc.faction_id=? and factionoc.initiated=? order by time_ready desc""",(crime_type,f_id,1,))
         for row in c:
             db_queue.append(row)
         #

@@ -77,6 +77,7 @@ class Crime_history:
             money=row[6]
             respect=row[7]
             et=row[8]
+            time_ready=row[9]
 
             players= player_list.split(',')
             comma = ''
@@ -101,7 +102,7 @@ class Crime_history:
                         player_name = str(p_id)
                     # Player readiness history goes here
                     t_first = None
-                    c.execute("""select max(et) from readiness where player_id=? and et<? and et>?""",(p_id, time_completed, time_completed-3600,))
+                    c.execute("""select max(et) from readiness where player_id=? and et<? and et>?""",(p_id, time_ready, time_ready-3600,))
                     for player_history in c:
                         if player_history[0]:
                             t_first = player_history[0]
@@ -112,7 +113,7 @@ class Crime_history:
                             frog = dehtml.Dehtml()
                             status_0 = frog.html_clean(status_0)
                             status_1 = frog.html_clean(status_1)
-                            delta_t = t_alibi - time_completed # could be +ve or -ve
+                            delta_t = t_alibi - time_ready # could be +ve or -ve
                             crimes_planned = crimes_planned + '\n' + player_name +  ' ' +  time.strftime("%H:%M", time.gmtime(t_alibi)) + ' T '
                             if delta_t < 0:
                                 crimes_planned = crimes_planned + 'minus '
@@ -128,9 +129,16 @@ class Crime_history:
                 else:
                     crimes_planned = crimes_planned + '\n' + 'Fail'
                 if time_executed:
-                    delaytime = (time_executed - time_completed)/60
-                    delaytime =int(delaytime+1)
-                    crimes_planned = crimes_planned +  ' delay=' + str(delaytime) + ' minutes (or less)'
+                    if time_ready > 8640000:
+                        # should use this
+                        delaytime = (time_completed - time_ready)/60
+                        print("ET=" + str(et) + " normal delaytime is COMPLETED-READY  ",  str(time_completed),  ' - ',  str(time_ready))
+                    else:
+                        # old style before time_ready existed
+                        delaytime = (time_executed - time_completed)/60
+                        print("ET=" + str(et) + " obsolete delaytime is EXECUTED-COMPLETED",  str(time_executed),  ' - ',  str(time_completed))
+                    delaytime =int(delaytime+0.5)
+                    crimes_planned = crimes_planned +  ' delay=' + str(delaytime) + ' minutes'
             else:
                 crimes_planned = crimes_planned + '\nstill future'
             crimes_planned = crimes_planned + '\n'

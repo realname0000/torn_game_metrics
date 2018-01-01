@@ -117,6 +117,7 @@ def get_faction(web, f_id, oc_interval):
                         c.execute("""update factionoc set money_gain=? where faction_id=? and oc_plan_id=?""", (oc[crimeplan]['money_gain'], f_id, crimeplan,))
                         c.execute("""update factionoc set respect_gain=? where faction_id=? and oc_plan_id=?""", (oc[crimeplan]['respect_gain'], f_id, crimeplan,))
                         c.execute("""update factionoc set time_executed=? where faction_id=? and oc_plan_id=?""", (int(time.time()), f_id, crimeplan,))
+                        c.execute("""update factionoc set time_completed=? where faction_id=? and oc_plan_id=?""", (int(oc[crimeplan]['time_completed']), f_id, crimeplan,))
                         c.execute("""update factionoc set et=? where faction_id=? and oc_plan_id=?""", (t, f_id, crimeplan,))
                         participants = oc_plan_already[crimeplan][3]
                         players = participants.split(',')
@@ -124,10 +125,10 @@ def get_faction(web, f_id, oc_interval):
                         print("Recording outcome of OC ", crimeplan)
                 else:
                     cx=oc[crimeplan]
-                    c.execute("""insert into factionoc values (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?)""",
+                    c.execute("""insert into factionoc values (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?)""",
                     (t, player_id_api, f_id, crimeplan,
                      cx["crime_id"], cx["crime_name"], cx["participants"], cx["time_started"], cx["time_completed"],
-                     cx["initiated"], cx["success"], cx["money_gain"], cx["respect_gain"], 0))
+                     cx["initiated"], cx["success"], cx["money_gain"], cx["respect_gain"], 0, cx["time_ready"]))
                     print("Storing new OC ", crimeplan)
             #
             c.execute("""update factionwatch set latest_oc=? where faction_id=?""", (t, f_id,))
@@ -315,7 +316,7 @@ near = 3600 + int(time.time())
 for f in f_todo:
     gang = {}
     oc_soon = []
-    c.execute ("""select oc_plan_id from factionoc where initiated=0 and faction_id=? and time_completed<?""",(f,near,))
+    c.execute ("""select oc_plan_id from factionoc where initiated=0 and faction_id=? and time_ready<?""",(f,near,))
     for row in c:
         oc_soon.append(row[0])
     if len(oc_soon):
@@ -359,7 +360,7 @@ for f in f_todo:
     conn.commit()
     # crime cancellation considered
     for who in maybe_double_booked:
-        c.execute ("""select whodunnit.oc_plan_id,factionoc.time_completed from whodunnit,factionoc where whodunnit.faction_id=? and whodunnit.player_id=? and factionoc.initiated=? and  whodunnit.oc_plan_id=factionoc.oc_plan_id order by factionoc.time_started desc""",(f,who,0,))
+        c.execute ("""select whodunnit.oc_plan_id,factionoc.time_ready from whodunnit,factionoc where whodunnit.faction_id=? and whodunnit.player_id=? and factionoc.initiated=? and  whodunnit.oc_plan_id=factionoc.oc_plan_id order by factionoc.time_started desc""",(f,who,0,))
         crime_bookings = [] # for one player
         crime_due_at = {}
         for row in c:

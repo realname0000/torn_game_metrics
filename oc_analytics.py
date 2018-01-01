@@ -52,10 +52,8 @@ class Compare:
                        if 1 == counting[x]:
                            two.append(x)
                     if (two[0] in players) and (two[1] in op):
-                        print("Two players are  ", two, " from ", plan, other)
                         add_this = [plan, other, two[0], two[1]]
                     elif (two[1] in players) and (two[0] in op):
-                        print("Two players are  ", two, " from ", other, plan)
                         add_this = [other, plan, two[0], two[1]]
                     else:
                         print("Error performing analytics")
