@@ -134,7 +134,7 @@ def playercrime(c, players):
 def reap_oc(c, f_id):
     now = int(time.time())
     analytics = oc_analytics.Compare(c, f_id)
-    c.execute("""select distinct oc_plan_id,crime_id,crime_name,participants,time_completed from factionoc where faction_id=? and initiated=?""",(f_id,0,))
+    c.execute("""select distinct oc_plan_id,crime_id,crime_name,participants,time_ready from factionoc where faction_id=? and initiated=?""",(f_id,0,))
     plans = []
     oc_plan_already = {}
     for row in c:
@@ -142,7 +142,7 @@ def reap_oc(c, f_id):
         oc_plan_already[row[0]]=row
     for crimeplan in plans:
         if (oc_plan_already[crimeplan][4] > now):
-            continue # avoid if time_completed still future
+            continue # avoid if time_ready still future
         c.execute("""update factionoc set initiated=? where faction_id=? and oc_plan_id=?""", (1, f_id, crimeplan,))
         c.execute("""update factionoc set et=? where faction_id=? and oc_plan_id=?""", (et, f_id, crimeplan,))
         c.execute("""update factionoc set time_executed=? where faction_id=? and oc_plan_id=?""", (et, f_id, crimeplan,))
@@ -223,8 +223,8 @@ def sow_oc(c, f_id, players):
             comma = ','
             c.execute("""insert into whodunnit values(?,?,?,?)""", (et, p, f_id, max_plan_already,))
         print("For OC ", max_plan_already, " of type ",  crime_id, " using ", participants, "at time ",  time.strftime("%Y-%m-%d", time.gmtime(et)))
-        c.execute("""insert into factionoc values(?,?,?,?,?, ?,?,?,?,?, ?,?,?,?)""",
-                     (et, 4, f_id, max_plan_already, crime_id, crime_name, participants, et, et+604800, 0,0,0,0,0,))
+        c.execute("""insert into factionoc values(?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?)""",
+                     (et, 4, f_id, max_plan_already, crime_id, crime_name, participants, et, 0, 0,0,0,0,0, et+604800))
 
 
 conn = sqlite3.connect('/var/torn/torn_db')
