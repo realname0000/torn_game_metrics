@@ -30,7 +30,7 @@ then
     echo ".backup /var/torn/auto_backup.$t" | sqlite3 /var/torn/torn_db
     #echo RC=$?
     echo "update admin set last_backup=$t;" | sqlite3 /var/torn/torn_db
-    find /var/torn/ -type f -name 'auto_backup.*' -mtime +30 -delete
+    find /var/torn/ -type f -name 'auto_backup.*' -mtime +14 -delete
 fi
 
 rm -f lock/$$

@@ -1,3 +1,6 @@
+SQLite version 3.8.10.2 2015-05-20 18:17:19
+Enter ".help" for usage hints.
+sqlite> .fullschema
 CREATE TABLE playerwatch (
         et              int not NULL,
         latest          int not NULL,
@@ -7,7 +10,7 @@ CREATE TABLE playerwatch (
 CREATE TABLE playercrimes (
         et                                int,
         api_id                            int,
-        player_id                         int not NULL,
+        player_id                         intnot NULL,
         selling_illegal_products          int,
         theft                             int,
         auto_theft                        int,
@@ -43,7 +46,7 @@ CREATE TABLE factionoc (
         success           int,
         money_gain        int,
         respect_gain      int,
-        time_executed     int);
+        time_executed     int, time_ready int);
 CREATE TABLE whodunnit (
         et             int not NULL,
         player_id      int not NULL,
@@ -98,3 +101,4 @@ CREATE TABLE player_compare_t (
         player_id       int primary key not NULL,
         et              int not NULL);
 /* No STAT tables available */
+sqlite> .quit

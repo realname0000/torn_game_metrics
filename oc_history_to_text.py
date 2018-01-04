@@ -89,7 +89,7 @@ class Crime_history:
                     one_player_name = str(oneplayer)
                 namelist = namelist + comma + one_player_name
                 comma = ', '
-            timestring =  time.strftime("%Y-%m-%d", time.gmtime(time_completed)) + ' '
+            timestring =  time.strftime("%Y-%m-%d", time.gmtime(time_ready)) + ' '
             crimes_planned = crimes_planned + linebreak +  timestring + crime_name + ' players are ' + namelist
             #
             #
@@ -132,11 +132,9 @@ class Crime_history:
                     if time_ready > 8640000:
                         # should use this
                         delaytime = (time_completed - time_ready)/60
-                        print("ET=" + str(et) + " normal delaytime is COMPLETED-READY  ",  str(time_completed),  ' - ',  str(time_ready))
                     else:
                         # old style before time_ready existed
                         delaytime = (time_executed - time_completed)/60
-                        print("ET=" + str(et) + " obsolete delaytime is EXECUTED-COMPLETED",  str(time_executed),  ' - ',  str(time_completed))
                     delaytime =int(delaytime+0.5)
                     crimes_planned = crimes_planned +  ' delay=' + str(delaytime) + ' minutes'
             else:
