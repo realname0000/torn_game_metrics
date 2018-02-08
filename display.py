@@ -102,13 +102,24 @@ def prepare_player_stats(p_id, pid2name, page_time, show_debug, fnamepre, weekno
 
 
 #   PSTATS
+    # XXX player stats may or may not be available - it needs that player's API key
     pstats='jail ?<br/>bust ?<br/>failbust ?<br/>hosp ?<br/>OD ?'
     stat_num = None
+    nerve_details = None
+    # XXX This is inefficient - can't I just take the latest row?
+    c.execute("""select et,cur_nerve,max_nerve from readiness where player_id=? order by et""",(p_id,))
+    for row in c:
+        nerve_details = row
+    # XXX This is inefficient - can't I just take the latest row?
     c.execute("""select  jailed,peoplebusted,failedbusts,hosp,od from pstats where player_id=? order by et""",(p_id,))
     for row in c:
         stat_num = row
     if stat_num:
         pstats='jail ' + str(stat_num[0]) +  '<br/>bust ' + str(stat_num[1]) + '<br/>failbust ' + str(stat_num[2]) + '<br/>hosp ' + str(stat_num[3]) + '<br/>OD ' + str(stat_num[4]) 
+    if nerve_details and nerve_details[2]:
+        pstats='nerve ' + str(nerve_details[2])  + '<br/>' + pstats
+    else:
+        pstats='nerve ?<br/>' + pstats
 
 #   IDLE TIME
     c.execute("""select et,total from playercrimes where player_id=? order by et""",(p_id,))
@@ -264,7 +275,7 @@ def prepare_faction_stats(f_id, fnamepre, weekno, keeping_faction, keeping_playe
     print("<p/>", file=web)
 
     print("<table border='1'>", file=web)
-    print("<tr><th>Player</th><th>Crime</th><th>Number</th><th>Recency</th> <th>Most days idle</br>(no crime)</th><th>Stats</th><th>Age of data</th><th>OC success</th><th>event list</th></tr>", file=web)
+    print("<tr><th>Player</th><th>Crime</th><th>Number</th><th>Recency</th> <th>Most days idle</br>(no crime)</th><th>Stats<br/>(needs API key)</th><th>Age of data</th><th>OC success</th><th>event list</th></tr>", file=web)
 
     for item in f_data:
         q = item.pop()

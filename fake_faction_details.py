@@ -112,7 +112,7 @@ def playercrime(c, players):
             # do not record crimes in the future
             continue
         elif (now-et)  < 604800:
-            # recent times mean traet it as now
+            # recent times mean treat it as now
             et = now
             crimedata[0] = now
         else:
@@ -146,6 +146,9 @@ def reap_oc(c, f_id):
         c.execute("""update factionoc set initiated=? where faction_id=? and oc_plan_id=?""", (1, f_id, crimeplan,))
         c.execute("""update factionoc set et=? where faction_id=? and oc_plan_id=?""", (et, f_id, crimeplan,))
         c.execute("""update factionoc set time_executed=? where faction_id=? and oc_plan_id=?""", (et, f_id, crimeplan,))
+        # also update time_completed with fake data (after time_ready)
+        tc = oc_plan_already[crimeplan][4] + int( random.random() * 1200 ) 
+        c.execute("""update factionoc set time_completed=? where faction_id=? and oc_plan_id=?""", (tc, f_id, crimeplan,))
         crime_id = oc_plan_already[crimeplan][1]
         if (random.random()) > 0.1:  # success or failure
             if crime_id == 8: # PA
