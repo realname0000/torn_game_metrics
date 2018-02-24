@@ -41,6 +41,7 @@ def get_player(web, p_id):
         conn.commit()
     else:
         return "FAIL to get personalstats"
+    get_readiness(web, p_id, 86400)
     return "OK"
 
 def get_faction(web, f_id, oc_interval):
@@ -252,7 +253,7 @@ def refresh_namelevel(web):
             c.execute("""insert or ignore into namelevel values (?, ?, ?, ?)""", (et, name, level, m,))
         conn.commit()
 
-def get_readiness(web, p_id):
+def get_readiness(web, p_id, interval):
     # readiiness for OC
     #
     # test for how recent a result we already have
@@ -262,7 +263,9 @@ def get_readiness(web, p_id):
     for row in c:
         if row[0]:
             t_already = row[0]
-    if (t_already + 300 > et):
+    if interval < 300:
+        interval = 300
+    if (t_already + interval > et):
         return "TOO RECENT"
     #
     cur_nerve, max_nerve, status_0, status_1=0, 0, '?', '?'
@@ -330,7 +333,7 @@ for f in f_todo:
     else:
         rc=get_faction(web, f, 7200) # get from API the faction data (except where recent data is already known or ignored flag is set)
     for player in gang:
-        get_readiness(web, player)
+        get_readiness(web, player, 300)
     if 'OK' != rc:
         print("return from get_faction(", web, f, ") is ", rc)
     # if rc was OK should remove from f_todo and avoid possible duplication
