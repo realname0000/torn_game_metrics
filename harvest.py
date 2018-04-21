@@ -5,6 +5,7 @@ import time
 import web_api
 import dehtml
 import oc_analytics
+import sys
 
 t_start_finegrain=time.time()
 
@@ -126,9 +127,11 @@ def get_faction(web, f_id, oc_interval):
                         print("Recording outcome of OC ", crimeplan)
                 else:
                     cx=oc[crimeplan]
+                    # change from a structure into a string
+                    part =  ','.join( cx["participants"].keys() )
                     c.execute("""insert into factionoc values (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?)""",
                     (t, player_id_api, f_id, crimeplan,
-                     cx["crime_id"], cx["crime_name"], cx["participants"], cx["time_started"], cx["time_completed"],
+                     cx["crime_id"], cx["crime_name"], part, cx["time_started"], cx["time_completed"],
                      cx["initiated"], cx["success"], cx["money_gain"], cx["respect_gain"], 0, cx["time_ready"]))
                     print("Storing new OC ", crimeplan)
             #
