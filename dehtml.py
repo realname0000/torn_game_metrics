@@ -25,7 +25,7 @@ class Dehtml:
                 t=got.group(1)+' '+got.group(2)
                 continue
      
-            got = re.search( r'(^.*)<[a-zA-Z0-9 =.?]*>(.*)$', t)
+            got = re.search( r'(^.*)<[a-zA-Z0-9" =.?]*>(.*)$', t)
             if got:
                 # want to edit string
                 t=got.group(1)+got.group(2)
