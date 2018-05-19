@@ -67,20 +67,20 @@ def populate_faction(c, f_id):
         c.execute("""insert into namelevel values(?,?,?,?)""", (oet, word, new_player, p_id,))
         # empty crime hstory
         c.execute("""insert into playercrimes values(?,?,?,?, ?,?,?,?, ?,?,?,?)""", (oet, 0, p_id,  0, 0, 0, 0, 0, 0, 0, 1, 1,))
-        c.execute("""insert into pstats values(?,?,?,?, ?,?,?,?)""", (oet, 0, p_id, 0, 0, 0, 0, 0,))
+        c.execute("""insert into pstats values(?,?,?,?, ?,?,?,?,?)""", (oet, 0, p_id, 0, 0, 0, 0, 0, 0,))
         conn.commit()
 
 
 def player_stats(c, players):
     now = int(time.time())
     for p_id in players:
-        c.execute("""select et,jailed,peoplebusted,failedbusts,hosp,od from pstats where player_id=? and et=(select max(et) from pstats where player_id=?)""", (p_id, p_id,))
+        c.execute("""select et,jailed,peoplebusted,failedbusts,hosp,od,oc_read from pstats where player_id=? and et=(select max(et) from pstats where player_id=?)""", (p_id, p_id,))
         stats = []
         for row in c:
             for i in row:
                 stats.append(i)
         if not len(stats):
-            stats = [now-90000, 0,0,0,0,0, 0, 0]
+            stats = [now-90000, 0,0,0, 0,0,0]
         if stats[0] > now:
             continue
         elif (now - stats[0]) > 604800:
@@ -89,9 +89,9 @@ def player_stats(c, players):
             stats[0] = now
         # random additions
         for i in range(1,len(stats)):
-            if (random.random() > 0.3):
+            if (random.random() > 0.3) and (i != 8):
                 stats[i] += 1
-        c.execute("""insert into pstats values(?,?,?,?, ?,?,?,?)""", (stats[0], 0, p_id, stats[1],  stats[2], stats[3], stats[4], stats[5],))
+        c.execute("""insert into pstats values(?,?,?,?, ?,?,?,?, ?)""", (stats[0], 0, p_id, stats[1],  stats[2], stats[3], stats[4], stats[5], stats[6],))
     conn.commit()
 
 

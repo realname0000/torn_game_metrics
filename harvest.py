@@ -37,7 +37,7 @@ def get_player(web, p_id):
     if 'OK' == result[0]:
         ps = result[1]['personalstats']
         player_id_api = result[2]
-        c.execute("""insert into pstats values (?,?,?, ?,?,?, ?,?)""", (t, player_id_api, p_id,  ps['jailed'], ps['peoplebusted'], ps['failedbusts'],ps['hospital'],ps['overdosed'],))
+        c.execute("""insert into pstats values (?,?,?, ?,?,?, ?,?,?)""", (t, player_id_api, p_id,  ps['jailed'], ps['peoplebusted'], ps['failedbusts'],ps['hospital'],ps['overdosed'], ps['organisedcrimes'],))
         c.execute ("""update playerwatch set latest=? where player_id=?""", (t, p_id,))
         conn.commit()
     else:
@@ -124,6 +124,9 @@ def get_faction(web, f_id, oc_interval):
                         participants = oc_plan_already[crimeplan][3]
                         players = participants.split(',')
                         analytics.ingest(f_id, crimeplan, oc[crimeplan]['crime_id'], players)
+                        if oc[crimeplan]['success']:
+                            for pu in players:
+                                c.execute("""update playeroc set oc_calc=oc_calc+1 where player_id=?""", (pu,))
                         print("Recording outcome of OC ", crimeplan)
                 else:
                     cx=oc[crimeplan]
@@ -291,6 +294,39 @@ def get_readiness(web, p_id, interval):
     c.execute("""insert into readiness values (?, ?, ?, ?, ?, ?)""", (et, p_id, cur_nerve, max_nerve, q1_data['status'][0], q1_data['status'][1],))
     conn.commit()
 
+def oc_count_per_player():
+    week_ago = time.time() - 604800
+    pstat_oc = {}
+    c.execute ("""select player_id,oc_read from pstats where et > ? order by et""", (week_ago,))
+    for row in c:
+        pstat_oc[str(row[0])] = row[1]
+    #
+    calc_oc = {}
+    c.execute ("""select player_id,oc_calc from playeroc""")
+    for row in c:
+        calc_oc[str(row[0])] = row[1]
+    #
+    for p in pstat_oc.keys():
+        if p in calc_oc:
+            c.execute ("""update playeroc set oc_calc=? where player_id=?""", (pstat_oc[p],p,))
+        else:
+            c.execute ("""insert into playeroc values(?,?)""", (p, pstat_oc[p],))
+            calc_oc[str(p)] = pstat_oc[p]
+    #
+    # all other players in playerwatch need to get inserted too
+    need2insert = {}
+    c.execute ("""select player_id from playerwatch""",)
+    for row in c:
+        if not str(row[0]) in calc_oc:
+            need2insert[row[0]] = 1
+    for p in need2insert.keys():
+        numcrimes = 1
+        c.execute("""select count(factionoc.crime_name) from factionoc,whodunnit where factionoc.oc_plan_id = whodunnit.oc_plan_id and  whodunnit.player_id = ? and factionoc.initiated = 1 and factionoc.success = 1""", (p,))
+        for row in c:
+            numcrimes = row[0]
+        c.execute ("""insert into playeroc values(?,?)""", (p, numcrimes,))
+
+
 ###################################################################################################
 
 # START
@@ -396,6 +432,7 @@ for p in p_todo:
     print("return from get_player(" + str(p) + ") is ", rc)
     time.sleep(2)
 
+oc_count_per_player()
 refresh_namelevel(web)
 clean_data()
 expire_old_data()

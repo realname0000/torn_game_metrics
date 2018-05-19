@@ -28,9 +28,9 @@ lb=$(expr $lb + 172800)
 if [ 1"$lb" -lt 1"$t" ]
 then
     echo ".backup /var/torn/auto_backup.$t" | sqlite3 /var/torn/torn_db
-    #echo RC=$?
     echo "update admin set last_backup=$t;" | sqlite3 /var/torn/torn_db
-    find /var/torn/ -type f -name 'auto_backup.*' -mtime +14 -delete
+    echo .fullschema | sqlite3 /var/torn/torn_db > /var/torn/auto_schema.$t
+    find /var/torn/ -type f -name 'auto_*' -mtime +14 -delete
 fi
 
 rm -f lock/$$

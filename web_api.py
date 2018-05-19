@@ -100,7 +100,11 @@ class Tornapi:
         except:
             self.count[1] += 1
             return ["FAIL API REQUEST"]
-        data = r.json()
+        try:
+            data = r.json()
+        except:
+            self.count[1] += 1
+            return ["FAIL API JSON"]
     
         if 'error' in data:
             # handle Torn API error

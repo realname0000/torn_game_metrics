@@ -22,10 +22,27 @@ class Draw_graph:
         os.rename("/torntmp/peabrain_foo.png",  self.docroot + fname)
         return  '/' + fname
 
+# suposed interactive code
+##  fig = plt.figure()
+##  plot = fig.add_subplot(111)
+##  # create some curves
+##  for i in range(4):
+##      plot.plot(
+##          [i*1,i*2,i*3,i*4],
+##          gid=i)
+##  
+##  def on_plot_hover(event):
+##      for curve in plot.get_lines():
+##          if curve.contains(event)[0]:
+##              print "over %s" % curve.get_gid()
+##  
+##  fig.canvas.mpl_connect('motion_notify_event', on_plot_hover)           
+##  plt.show()
+
 
     def player(self, pid2name, p_id):
         urls = []
-        for subject in ('nerve', 'peoplebusted', 'jail', 'total_crime'):
+        for subject in ('nerve', 'peoplebusted', 'jail', 'total_crime', 'organisedcrimes'):
             xx = []
             yy = []
             y2 = []
@@ -58,6 +75,14 @@ class Draw_graph:
                         nonzero_data = 1
             elif 'total_crime' == subject:
                 self.c.execute("""select et,total from playercrimes where player_id=? order by et""",(p_id,))
+                for row in self.c:
+                    last_x = int(row[0])
+                    xx.append(datetime.date.fromtimestamp(int(row[0])))
+                    yy.append(int(row[1]))
+                    if row[1]:
+                        nonzero_data = 1
+            elif 'organisedcrimes' == subject:
+                self.c.execute("""select et,oc_read from pstats where player_id=? order by et""",(p_id,))
                 for row in self.c:
                     last_x = int(row[0])
                     xx.append(datetime.date.fromtimestamp(int(row[0])))

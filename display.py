@@ -334,6 +334,25 @@ def prepare_faction_stats(f_id, fnamepre, weekno, keeping_faction, keeping_playe
     faction_ptname = hashlib.sha1(bytes('faction_player_table' + str(f_id) + fnamepre + str(weekno), 'utf-8')).hexdigest()
     os.rename("/torntmp/player_table.html",  docroot + "faction/" +  faction_dname + '/'  + faction_ptname +  ".html")
 
+    #  Organised crime counts
+    poc = {} # player OC
+    c.execute("""select playeroc.player_id,playeroc.oc_calc from playeroc,playerwatch where playerwatch.faction_id=? and  playerwatch.player_id=playeroc.player_id""", (f_id,))
+    for whatocs in c:
+        poc[str(whatocs[0])] = whatocs[1]
+    oc_ordered = sorted(poc.keys(), key=lambda p: poc[p]) 
+    #
+    oc_tmp_page=open("/torntmp/oc_count.html", "w")
+    print("<html><head></head><body><h2>OC Count (award at 100)</h2>", file=oc_tmp_page)
+    print("<ul>", file=oc_tmp_page)
+    for p_id in oc_ordered:
+        if not p_id in pid2name:
+            continue
+        print("<li>", poc[p_id], pid2name[p_id], "</li>", file=oc_tmp_page)
+    print("</ul></body></html>", file=oc_tmp_page)
+    oc_tmp_page.close()
+    oc_counts = hashlib.sha1(bytes('oc_counts' + str(f_id) + fnamepre + str(weekno), 'utf-8')).hexdigest()
+    os.rename("/torntmp/oc_count.html",  docroot + "faction/" +  faction_dname + '/'  + oc_counts +  ".html")
+
     crime_schedule=[]
     c.execute("""select distinct crime_id from factionoc where faction_id=? order by crime_id desc""", (f_id,))
     for row in c:
@@ -354,6 +373,8 @@ def prepare_faction_stats(f_id, fnamepre, weekno, keeping_faction, keeping_playe
     print("</h2>", file=intro)
     print("<br/>Page created at ", time.strftime("%Y-%m-%d %H:%M", time.gmtime(page_time)), file=intro)
     print('<p/><a href="/faction/' +   faction_dname + '/'  + faction_ptname +  '.html' + '">Player Table</a>', file=intro)
+    print('<p/><hr>', file=intro)
+    print('<p/><a href="/faction/' +   faction_dname + '/'  + oc_counts +  '.html' + '">Organised Crime Counts</a>', file=intro)
     print('<p/><hr>', file=intro)
 
     print('<ul>', file=intro)
