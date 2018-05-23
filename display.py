@@ -413,7 +413,7 @@ def prepare_faction_stats(f_id, fnamepre, weekno, keeping_faction, keeping_playe
 #START
 
 weekno=int(time.time()/604800)
-conn = sqlite3.connect('/var/torn/torn_db')
+conn = sqlite3.connect('file:/var/torn/torn_db?mode=ro', uri=True)
 c = conn.cursor()
 conn.commit()
 
@@ -451,10 +451,28 @@ keep_this_player_htdoc.exterminate()
 
 p_already = keep_this_player_htdoc.showid()
 
+conn.commit()
+c.close()
+
+# Do we need to delete old entries from playerwatch?
+plan_deletion = False
 for pid in watch.keys():
     if pid in p_already:
         continue
-    c.execute ("""delete from playerwatch where player_id = ?""", (pid,))
+    plan_deletion = True
+    break
 
-conn.commit()
-c.close()
+if not plan_deletion:
+    exit(0)
+
+# will need read-write access
+
+conn2 = sqlite3.connect('/var/torn/torn_db')
+c2 = conn2.cursor()
+conn2.commit()
+for pid in watch.keys():
+    if pid in p_already:
+        continue
+    c2.execute ("""delete from playerwatch where player_id = ?""", (pid,))
+conn2.commit()
+c2.close()

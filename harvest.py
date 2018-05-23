@@ -127,7 +127,7 @@ def get_faction(web, f_id, oc_interval):
                         if oc[crimeplan]['success']:
                             for pu in players:
                                 c.execute("""update playeroc set oc_calc=oc_calc+1 where player_id=?""", (pu,))
-                        print("Recording outcome of OC ", crimeplan)
+                        print("Recording outcome of OC ", crimeplan, " success is", oc[crimeplan]['success'])
                 else:
                     cx=oc[crimeplan]
                     # change from a structure into a string
@@ -415,8 +415,9 @@ for f in f_todo:
                     print("Future crime ", oc_multi, " cancelled - deleting from factionoc")
                     c.execute ("""delete from factionoc where oc_plan_id=?""", (oc_multi,))
                 else:
-                    print("Crime ", oc_multi, " set as initiated/failed in factionoc (although it might have been deleted)")
-                    c.execute ("""update factionoc set initiated=1 where oc_plan_id=?""", (oc_multi,))
+                    pass
+                    # XXX # print("Crime ", oc_multi, " set as initiated/failed in factionoc (although it might have been deleted)")
+                    # XXX # c.execute ("""update factionoc set initiated=1 where oc_plan_id=?""", (oc_multi,))
     conn.commit()
 
 

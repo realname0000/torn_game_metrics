@@ -96,10 +96,10 @@ class Tornapi:
             signal.alarm(0)
             if not r:
                 self.count[1] += 1
-                return ["FAIL API REQUEST r is None"]
+                return ["FAIL API REQUEST r is None what=" + str(what) + " which=" + str(which) + " how=" + str(how)]
         except:
             self.count[1] += 1
-            return ["FAIL API REQUEST"]
+            return ["FAIL API REQUEST what=" + str(what) + " which=" + str(which) + " how=" + str(how)]
         try:
             data = r.json()
         except:
@@ -124,7 +124,7 @@ class Tornapi:
             if key_id in self.good_user_key:
                 del self.good_user_key[key_id]
             self.count[2] += 1
-            return ["API ERROR", code]
+            return ["API ERROR what=" + str(what) + " which=" + str(which) + " how=" + str(how), code]
     
         if 'user' == what:
             if 'basic' == how:
