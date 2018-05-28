@@ -38,6 +38,29 @@ def get_player(web, p_id):
         ps = result[1]['personalstats']
         player_id_api = result[2]
         c.execute("""insert into pstats values (?,?,?, ?,?,?, ?,?,?)""", (t, player_id_api, p_id,  ps['jailed'], ps['peoplebusted'], ps['failedbusts'],ps['hospital'],ps['overdosed'], ps['organisedcrimes'],))
+        conn.commit()
+        # and drugs XXX some of these may be missing
+        if not 'cantaken' in ps:
+            ps['cantaken'] = 0
+        if not 'exttaken' in ps:
+            ps['exttaken'] = 0
+        if not 'lsdtaken' in ps:
+            ps['lsdtaken'] = 0
+        if not 'opitaken' in ps:
+            ps['opitaken'] = 0
+        if not 'shrtaken' in ps:
+            ps['shrtaken'] = 0
+        if not 'pcptaken' in ps:
+            ps['pcptaken'] = 0
+        if not 'xantaken' in ps:
+            ps['xantaken'] = 0
+        if not 'victaken' in ps:
+            ps['victaken'] = 0
+        if not 'spetaken' in ps:
+            ps['spetaken'] = 0
+        if not 'kettaken' in ps:
+            ps['kettaken'] = 0
+        c.execute("""insert into drugs values (?,?,?, ?,?,?, ?,?,?, ?,?,?)""", (t, p_id,  ps['cantaken'], ps['exttaken'], ps['lsdtaken'],ps['opitaken'],ps['shrtaken'], ps['pcptaken'], ps['xantaken'], ps['victaken'], ps['spetaken'], ps['kettaken'],))
         c.execute ("""update playerwatch set latest=? where player_id=?""", (t, p_id,))
         conn.commit()
     else:
@@ -102,7 +125,11 @@ def get_faction(web, f_id, oc_interval):
         result = web.torn('faction', f_id, 'crimes')
         conn.commit()
         if 'OK' == result[0]:
+            #
             oc=result[1]['crimes']
+            for oc_api_id in oc:
+                print("OC from api is", oc_api_id, oc[oc_api_id]['crime_name'], oc[oc_api_id]['initiated'])
+            #
             player_id_api = result[2]
             c.execute("""SELECT oc_plan_id,time_started,initiated,participants FROM factionoc where faction_id=?""", (f_id,))
             oc_plan_already = {}
@@ -124,6 +151,7 @@ def get_faction(web, f_id, oc_interval):
                         participants = oc_plan_already[crimeplan][3]
                         players = participants.split(',')
                         analytics.ingest(f_id, crimeplan, oc[crimeplan]['crime_id'], players)
+                        # counting OC success by each player
                         if oc[crimeplan]['success']:
                             for pu in players:
                                 c.execute("""update playeroc set oc_calc=oc_calc+1 where player_id=?""", (pu,))
@@ -164,6 +192,7 @@ def expire_old_data():
     c.execute("""delete from playercrimes where et<?""", (year_ago,))
     c.execute("""delete from readiness where et<?""", (year_ago,))
     c.execute("""delete from pstats where et<?""", (year_ago,))
+    c.execute("""delete from drugs where et<?""", (year_ago,))
     # These next ones are more complicated because of foreign keys.
     c.execute("""select oc_plan_id from factionoc where et<?""", (year_ago,))
     oc_to_del = []

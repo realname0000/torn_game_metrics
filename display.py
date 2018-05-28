@@ -106,12 +106,17 @@ def prepare_player_stats(p_id, pid2name, page_time, show_debug, fnamepre, weekno
     pstats='jail ?<br/>bust ?<br/>failbust ?<br/>hosp ?<br/>OD ?'
     stat_num = None
     nerve_details = None
+    drug_details = None
+    # XXX This is inefficient - can't I just take the latest row?
+    c.execute("""select et,xantaken from drugs where player_id=? order by et""",(p_id,))
+    for row in c:
+        drug_details = row
     # XXX This is inefficient - can't I just take the latest row?
     c.execute("""select et,cur_nerve,max_nerve from readiness where player_id=? order by et""",(p_id,))
     for row in c:
         nerve_details = row
     # XXX This is inefficient - can't I just take the latest row?
-    c.execute("""select  jailed,peoplebusted,failedbusts,hosp,od from pstats where player_id=? order by et""",(p_id,))
+    c.execute("""select jailed,peoplebusted,failedbusts,hosp,od from pstats where player_id=? order by et""",(p_id,))
     for row in c:
         stat_num = row
     if stat_num:
@@ -120,6 +125,10 @@ def prepare_player_stats(p_id, pid2name, page_time, show_debug, fnamepre, weekno
         pstats='nerve ' + str(nerve_details[2])  + '<br/>' + pstats
     else:
         pstats='nerve ?<br/>' + pstats
+    if drug_details and drug_details[1]:
+        pstats = pstats + '<br/>xanax ' + str(drug_details[1])
+    else:
+        pstats = pstats + '<br/>xanax ?'
 
 #   IDLE TIME
     c.execute("""select et,total from playercrimes where player_id=? order by et""",(p_id,))

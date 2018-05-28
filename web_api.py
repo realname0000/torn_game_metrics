@@ -105,6 +105,9 @@ class Tornapi:
         except:
             self.count[1] += 1
             return ["FAIL API JSON"]
+
+        if what=='faction' and how=='crimes':
+            print("faction crime data recieved as",r)
     
         if 'error' in data:
             # handle Torn API error

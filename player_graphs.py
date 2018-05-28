@@ -42,10 +42,11 @@ class Draw_graph:
 
     def player(self, pid2name, p_id):
         urls = []
-        for subject in ('nerve', 'peoplebusted', 'jail', 'total_crime', 'organisedcrimes'):
+        for subject in ('nerve', 'drugs', 'total_crime', 'peoplebusted', 'jail', 'organisedcrimes'):
             xx = []
             yy = []
             y2 = []
+            y3 = []
             last_x = 0
             nonzero_data = 0
             if 'nerve' == subject:
@@ -56,6 +57,16 @@ class Draw_graph:
                     yy.append(int(row[1]))
                     y2.append(int(row[2]))
                     if row[1] or row[2]:
+                        nonzero_data = 1
+            elif 'drugs' == subject:
+                self.c.execute("""select et,xantaken,victaken,exttaken from drugs where player_id=? order by et""",(p_id,))
+                for row in self.c:
+                    last_x = int(row[0])
+                    xx.append(datetime.date.fromtimestamp(int(row[0])))
+                    yy.append(int(row[1]))
+                    y2.append(int(row[2]))
+                    y3.append(int(row[3]))
+                    if row[1] or row[2] or row[3]:
                         nonzero_data = 1
             elif 'peoplebusted' == subject:
                 self.c.execute("""select et,peoplebusted from pstats where player_id=? order by et""",(p_id,))
@@ -90,6 +101,7 @@ class Draw_graph:
                     if row[1]:
                         nonzero_data = 1
             else:
+                print("bad graph name", subject, p_id)
                 continue
             if nonzero_data and (len(xx) > 2):
                 player_name = '?'
@@ -106,5 +118,6 @@ class Draw_graph:
                         continue # no need to redraw graph
                 except:
                     pass
-                urls.append(self.one_graph(xx, yy, y2, short_fname, subject, player_name))
+                new_graph = self.one_graph(xx, yy, y2, short_fname, subject, player_name)
+                urls.append(new_graph)
         return urls
