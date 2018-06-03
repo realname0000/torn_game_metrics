@@ -43,6 +43,7 @@ class Tornapi:
     #             user/faction   selection   property
     def torn(self, what, which, how):
         key_id = None
+        ak = None
         if ('player' == what) or ('user' == what):
             what = 'user'
             choose_from = self.good_user_key.keys()
@@ -86,6 +87,8 @@ class Tornapi:
         else:
             return ["EPARM how"]
     
+        if not ak:
+            return ["EPARM no key available"]
         print("about to query ", what, repr(which) , " for ", how)
     
         apiurl="https://api.torn.com/" + what + "/" + str(which) + "?selections=" + how + "&key=" + ak

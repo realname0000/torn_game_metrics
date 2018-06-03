@@ -393,10 +393,13 @@ for f in f_todo:
     if len(oc_soon):
         # OC due - look more closely at the OC data
         for plan in oc_soon:
-            print("Interest in OC for ", f, " a plan is ", plan)
-            c.execute ("""select player_id  from whodunnit where oc_plan_id==? and faction_id=?""",(plan,f,))
+            c.execute ("""select player_id from whodunnit where oc_plan_id==? and faction_id=?""",(plan,f,))
             for row in c:
                 gang[row[0]]=1
+            c.execute ("""select crime_name from factionoc where oc_plan_id==? and faction_id=?""",(plan,f,))
+            for row in c:
+                crime_name = row[0]
+            print("Interest in OC for", f, "a plan is", plan, crime_name, "by", sorted(gang.keys()))
         rc=get_faction(web, f, 900) # get from API the faction data (except where recent data is already known or ignored flag is set)
     else:
         rc=get_faction(web, f, 7200) # get from API the faction data (except where recent data is already known or ignored flag is set)
