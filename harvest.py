@@ -385,7 +385,7 @@ web=web_api.Tornapi(c) # use this one object throughout
 # detect OC that are ready or nearly ready
 near = 3600 + int(time.time())
 for f in f_todo:
-    gang = {}
+    all_gang = {}
     oc_soon = []
     c.execute ("""select oc_plan_id from factionoc where initiated=0 and faction_id=? and time_ready<?""",(f,near,))
     for row in c:
@@ -393,17 +393,19 @@ for f in f_todo:
     if len(oc_soon):
         # OC due - look more closely at the OC data
         for plan in oc_soon:
+            this_gang = {}
             c.execute ("""select player_id from whodunnit where oc_plan_id==? and faction_id=?""",(plan,f,))
             for row in c:
-                gang[row[0]]=1
+                all_gang[row[0]]=1
+                this_gang[row[0]]=1
             c.execute ("""select crime_name from factionoc where oc_plan_id==? and faction_id=?""",(plan,f,))
             for row in c:
                 crime_name = row[0]
-            print("Interest in OC for", f, "a plan is", plan, crime_name, "by", sorted(gang.keys()))
+            print("Interest in OC for", f, "a plan is", plan, crime_name, "by", sorted(this_gang.keys()))
         rc=get_faction(web, f, 900) # get from API the faction data (except where recent data is already known or ignored flag is set)
     else:
         rc=get_faction(web, f, 7200) # get from API the faction data (except where recent data is already known or ignored flag is set)
-    for player in gang:
+    for player in all_gang:
         get_readiness(web, player, 300)
     if 'OK' != rc:
         print("return from get_faction(", web, f, ") is ", rc)
