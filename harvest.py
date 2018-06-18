@@ -449,9 +449,8 @@ for f in f_todo:
                     print("Future crime ", oc_multi, " cancelled - deleting from factionoc")
                     c.execute ("""delete from factionoc where oc_plan_id=?""", (oc_multi,))
                 else:
-                    pass
-                    # XXX # print("Crime ", oc_multi, " set as initiated/failed in factionoc (although it might have been deleted)")
-                    # XXX # c.execute ("""update factionoc set initiated=1 where oc_plan_id=?""", (oc_multi,))
+                    print("Crime ", oc_multi, " set as initiated/failed in factionoc (although it might have been deleted)")
+                    c.execute ("""update factionoc set initiated=1 where oc_plan_id=?""", (oc_multi,))
     conn.commit()
 
 

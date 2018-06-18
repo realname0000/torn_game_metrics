@@ -76,7 +76,7 @@ class Crime_compare:
         longname =  self.docroot + shortname
         
         webpage=open("/torntmp/tmpfile_player_oc_cf_table_of_two", "w")
-        print("<html><head></head><body>", file=webpage)
+        print("<!DOCTYPE html><html lang='en'><head><meta charset='utf-8'></head><body>", file=webpage)
         print('<table border="1">', file=webpage)
         
         print('<tr>', file=webpage)
@@ -133,8 +133,7 @@ class Crime_compare:
             pass # need to write file
 
         webpage=open("/torntmp/tmpfile_player_oc_cf", "w")
-
-        print("<html><head></head><body>", file=webpage)
+        print("<!DOCTYPE html><html lang='en'><head><meta charset='utf-8'></head><body>", file=webpage)
         if str(p_id) in pid2name:
             player_name = str(pid2name[str(p_id)])
         else:

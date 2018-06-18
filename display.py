@@ -195,7 +195,7 @@ def prepare_player_stats(p_id, pid2name, page_time, show_debug, fnamepre, weekno
         col1_answer = [row[0], p_id, row[1]]
 
     pg_index=open("/torntmp/begin_graphs.html", "w")
-    print("<html><head></head><body>", file=pg_index)
+    print("<!DOCTYPE html><html lang='en'><head><meta charset='utf-8'></head><body>", file=pg_index)
     print("Player data for ", col1_answer[0], file=pg_index)
     #
     print("<table border='1'>", file=pg_index)
@@ -275,7 +275,7 @@ def prepare_faction_stats(f_id, fnamepre, weekno, keeping_faction, keeping_playe
     keeping_faction.allow(faction_dname)
 
     web=open("/torntmp/player_table.html", "w")
-    print("<html><head></head><body><h2>Faction Player Table:", file=web)
+    print("<!DOCTYPE html><html lang='en'><head><meta charset='utf-8'></head><body><h2>Faction Player Table:", file=web)
     print(faction_name, f_id, file=web)
     print("</h2>", file=web)
     print("<br/>Page created at ", time.strftime("%Y-%m-%d %H:%M", time.gmtime(page_time)), file=web)
@@ -332,7 +332,7 @@ def prepare_faction_stats(f_id, fnamepre, weekno, keeping_faction, keeping_playe
         print("</td></tr>", file=web)
 
     print("</table>", file=web)
-    print("<body><html>", file=web)
+    print("</body></html>", file=web)
     web.close()
 
     longdname= docroot + 'faction/' + faction_dname
@@ -351,7 +351,7 @@ def prepare_faction_stats(f_id, fnamepre, weekno, keeping_faction, keeping_playe
     oc_ordered = sorted(poc.keys(), key=lambda p: poc[p]) 
     #
     oc_tmp_page=open("/torntmp/oc_count.html", "w")
-    print("<html><head></head><body><h2>OC Count (award at 100)</h2>", file=oc_tmp_page)
+    print("<!DOCTYPE html><html lang='en'><head><meta charset='utf-8'></head><body><h2>OC Count (award at 100)</h2>", file=oc_tmp_page)
     print("<ul>", file=oc_tmp_page)
     for p_id in oc_ordered:
         if not p_id in pid2name:
@@ -377,7 +377,7 @@ def prepare_faction_stats(f_id, fnamepre, weekno, keeping_faction, keeping_playe
     except:
         os.mkdir(introdir)
     intro=open("/torntmp/index.html", "w")
-    print("<html><head></head><body><h2>Faction Intro Page: ", file=intro)
+    print("<!DOCTYPE html><html lang='en'><head><meta charset='utf-8'></head><body><h2>Faction Intro Page: ", file=intro)
     print(faction_name, f_id, file=intro)
     print("</h2>", file=intro)
     print("<br/>Page created at ", time.strftime("%Y-%m-%d %H:%M", time.gmtime(page_time)), file=intro)
