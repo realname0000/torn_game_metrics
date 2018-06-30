@@ -13,6 +13,7 @@ class Tornapi:
         self.suggest_faction_key = {}
         self.pid2ak = {}
         self.default_apikey = None
+        self.api_is_enabled = True # assume this and change it if necessary
         #
         c.execute ("""select default_apikey from admin""")
         for row in c:
@@ -44,6 +45,8 @@ class Tornapi:
     def torn(self, what, which, how):
         key_id = None
         ak = None
+        if not self.api_is_enabled:
+            return ["API ERROR what=" + str(what) + " which=" + str(which) + " how=" + str(how), 'api disabled already']
         if ('player' == what) or ('user' == what):
             what = 'user'
             choose_from = self.good_user_key.keys()
@@ -130,6 +133,8 @@ class Tornapi:
             if key_id in self.good_user_key:
                 del self.good_user_key[key_id]
             self.count[2] += 1
+            if 9 == code:
+                self.api_is_enabled = False # need to stop making requests
             return ["API ERROR what=" + str(what) + " which=" + str(which) + " how=" + str(how), code]
     
         if 'user' == what:
