@@ -9,13 +9,15 @@ import oc_cf_web
 import keep_files
 import player_graphs
 
+
 def seconds_text(s):
     if s < 180:
-        return str(s) +'s'
+        return str(s) + 's'
     elif s < 7200:
-        return str(int(s/60)) +'m'
+        return str(int(s/60)) + 'm'
     else:
-        return str(int(s/3600)) +'h'
+        return str(int(s/3600)) + 'h'
+
 
 def prepare_player_stats(p_id, pid2name, page_time, show_debug, fnamepre, weekno, keeping_player, docroot, my_oc_cf, appleorange):
     blob = []
@@ -43,12 +45,12 @@ def prepare_player_stats(p_id, pid2name, page_time, show_debug, fnamepre, weekno
         got_page = retlist[0]
         if got_page:
             # time parameter to help see whether a page has changed since you last loaded it in the browser
-            oc_cf_link = '<br/><a href="' + retlist[1] + '?t=' +  str(retlist[2]) + '">OC comparison</a>'
+            oc_cf_link = '<br/><a href="' + retlist[1] + '?t=' + str(retlist[2]) + '">OC comparison</a>'
 
     # produce OC list for this player
-    linebreak=''
+    linebreak = ''
     db_queue = []
-    c.execute("""select factionoc.crime_name,factionoc.initiated,factionoc.success,factionoc.time_completed,factionoc.time_executed,factionoc.participants,factionoc.money_gain,factionoc.respect_gain,factionoc.et,factionoc.time_ready from factionoc,whodunnit where factionoc.oc_plan_id = whodunnit.oc_plan_id and  whodunnit.player_id = ? order by time_ready desc""",(p_id,))
+    c.execute("""select factionoc.crime_name,factionoc.initiated,factionoc.success,factionoc.time_completed,factionoc.time_executed,factionoc.participants,factionoc.money_gain,factionoc.respect_gain,factionoc.et,factionoc.time_ready from factionoc,whodunnit where factionoc.oc_plan_id = whodunnit.oc_plan_id and  whodunnit.player_id = ? order by time_ready desc""", (p_id,))
     for row in c:
         db_queue.append(row)
     #
@@ -83,56 +85,55 @@ def prepare_player_stats(p_id, pid2name, page_time, show_debug, fnamepre, weekno
         if row[1]:
             crimes_good[row[0]] += 1
     build_string = ''
-    linebreak=''
+    linebreak = ''
     for oc in sorted(crimes_done):
         r = oc + '=' + str(crimes_good[oc]) + '/' + str(crimes_done[oc])
         build_string = build_string + linebreak + r
-        linebreak='<br/>'
+        linebreak = '<br/>'
     col_ratio_answer = build_string
 
-
     # timeliness of stats data
-    c.execute("""select et from namelevel where player_id = ?""",(p_id,))
+    c.execute("""select et from namelevel where player_id = ?""", (p_id,))
     for row in c:
-        level_time= page_time - row[0]
-    c.execute ("""select latest from playerwatch where player_id=?""",(p_id,))
+        level_time = page_time - row[0]
+    c.execute("""select latest from playerwatch where player_id=?""", (p_id,))
     for row in c:
         crime_time = page_time - row[0]
-    col6_answer="level=" + seconds_text(level_time) + "<br/>crimes=" + seconds_text(crime_time)
+    col6_answer = "level=" + seconds_text(level_time) + "<br/>crimes=" + seconds_text(crime_time)
 
 
 #   PSTATS
     # XXX player stats may or may not be available - it needs that player's API key
-    pstats='jail ?<br/>bust ?<br/>failbust ?<br/>hosp ?<br/>OD ?'
+    pstats ='jail ?<br/>bust ?<br/>failbust ?<br/>hosp ?<br/>OD ?'
     stat_num = None
     nerve_details = None
     drug_details = None
     # XXX This is inefficient - can't I just take the latest row?
-    c.execute("""select et,xantaken from drugs where player_id=? order by et""",(p_id,))
+    c.execute("""select et,xantaken from drugs where player_id=? order by et""", (p_id,))
     for row in c:
         drug_details = row
     # XXX This is inefficient - can't I just take the latest row?
-    c.execute("""select et,cur_nerve,max_nerve from readiness where player_id=? order by et""",(p_id,))
+    c.execute("""select et,cur_nerve,max_nerve from readiness where player_id=? order by et""", (p_id,))
     for row in c:
         nerve_details = row
     # XXX This is inefficient - can't I just take the latest row?
-    c.execute("""select jailed,peoplebusted,failedbusts,hosp,od from pstats where player_id=? order by et""",(p_id,))
+    c.execute("""select jailed,peoplebusted,failedbusts,hosp,od from pstats where player_id=? order by et""", (p_id,))
     for row in c:
         stat_num = row
     if stat_num:
-        pstats='jail ' + str(stat_num[0]) +  '<br/>bust ' + str(stat_num[1]) + '<br/>failbust ' + str(stat_num[2]) + '<br/>hosp ' + str(stat_num[3]) + '<br/>OD ' + str(stat_num[4]) 
+        pstats = 'jail ' + str(stat_num[0]) + '<br/>bust ' + str(stat_num[1]) + '<br/>failbust ' + str(stat_num[2]) + '<br/>hosp ' + str(stat_num[3]) + '<br/>OD ' + str(stat_num[4])
     if nerve_details and nerve_details[2]:
-        pstats='nerve ' + str(nerve_details[2])  + '<br/>' + pstats
+        pstats = 'nerve ' + str(nerve_details[2]) + '<br/>' + pstats
     else:
-        pstats='nerve ?<br/>' + pstats
+        pstats = 'nerve ?<br/>' + pstats
     if drug_details and drug_details[1]:
         pstats = pstats + '<br/>xanax ' + str(drug_details[1])
     else:
         pstats = pstats + '<br/>xanax ?'
 
 #   IDLE TIME
-    c.execute("""select et,total from playercrimes where player_id=? order by et""",(p_id,))
-    was, when, one_interval, longest_interval = 0,0,0,0 # activity
+    c.execute("""select et,total from playercrimes where player_id=? order by et""", (p_id,))
+    was, when, one_interval, longest_interval = 0, 0, 0, 0  # activity
     for row in c:
         if row[1] == was:
             # equal to older value
@@ -147,16 +148,16 @@ def prepare_player_stats(p_id, pid2name, page_time, show_debug, fnamepre, weekno
             # increase
             one_interval=0
         when,was=row
-    days_idle = int (longest_interval / 86400)
+    days_idle = int(longest_interval / 86400)
     if days_idle > 300:
-        days_idle='many'
+        days_idle = 'many'
     else:
-        days_idle=str(days_idle)
+        days_idle = str(days_idle)
 
     # column of recenvy
     c.execute("""select et,selling_illegal_products,theft,auto_theft,drug_deals,computer_crimes,murder,fraud_crimes,other,total from playercrimes where  player_id = ? order by et""", (p_id,))
-    crim_record = [-1,-1,-1, -1,-1,-1, -1,-1,-1]
-    timestamp = [0,0,0, 0,0,0, 0,0,0]
+    crim_record = [-1 ,-1, -1, -1, -1, -1, -1, -1, -1]
+    timestamp = [0, 0, 0, 0, 0, 0, 0, 0, 0]
     for row in c:
         new_crim_record=row[1:]
         for i in range (0,9):
@@ -166,9 +167,9 @@ def prepare_player_stats(p_id, pid2name, page_time, show_debug, fnamepre, weekno
     col4_answer = ''
     for rt in timestamp:
         if rt:
-            col4_answer = col4_answer +  "<div align='right'>" +  time.strftime("%Y-%m-%d", time.gmtime(rt)) + "</div><div align='right'>"
+            col4_answer = col4_answer + "<div align='right'>" +  time.strftime("%Y-%m-%d", time.gmtime(rt)) + "</div><div align='right'>"
         else:
-            col4_answer = col4_answer +  "<div align='right'>?</div><div align='right'>"
+            col4_answer = col4_answer + "<div align='right'>?</div><div align='right'>"
     #
     col3_answer = ['numbers ?']
     col2_answer = ['what crimes ?']
@@ -211,14 +212,14 @@ def prepare_player_stats(p_id, pid2name, page_time, show_debug, fnamepre, weekno
     print("</body></html>", file=pg_index)
     pg_index.close()
     player_index = hashlib.sha1(bytes('player-index' + str(p_id) + fnamepre + str(weekno), 'utf-8')).hexdigest()
-    os.rename("/torntmp/begin_graphs.html",  docroot + "player/" + player_dname +  "/" +  player_index + ".html")
-    col1_answer.append("/player/" + player_dname +  "/" +  player_index + ".html")
+    os.rename("/torntmp/begin_graphs.html", docroot + "player/" + player_dname + "/" + player_index + ".html")
+    col1_answer.append("/player/" + player_dname + "/" + player_index + ".html")
 
     blob.append(col1_answer)
     return blob
 
 def prepare_faction_stats(f_id, fnamepre, weekno, keeping_faction, keeping_player, docroot):
-    page_time = int(time.time()) # seconds
+    page_time = int(time.time())  # seconds
     print("faction data for ", f_id)
 
     all_oc_cf = []
@@ -256,11 +257,10 @@ def prepare_faction_stats(f_id, fnamepre, weekno, keeping_faction, keeping_playe
         n_player += 1
     print(n_player, "players processed")
 
-    f_data = sorted(f_data, key=lambda one: one[-1][1]) 
-    f_data = sorted(f_data, key=lambda one: one[-1][2], reverse=True) 
+    f_data = sorted(f_data, key=lambda one: one[-1][1])
+    f_data = sorted(f_data, key=lambda one: one[-1][2], reverse=True)
 
-
-    faction_name,faction_web = '?',None
+    faction_name, faction_web = '?', None
     c.execute("""select f_name,f_web from factiondisplay where f_id=?""", (f_id,))
     for fdetails in c:
         faction_name,faction_web = fdetails
@@ -321,8 +321,8 @@ def prepare_faction_stats(f_id, fnamepre, weekno, keeping_faction, keeping_playe
         print(q, file=web)
         print("</td><td>", file=web)
 
-         #  oc
-         # <div title='date-player-outcome date-player-outcome date-player-outcome date-player-outcome date-playeroutcome'>PA 4/5</div>
+        #  oc
+        # <div title='date-player-outcome date-player-outcome date-player-outcome date-player-outcome date-playeroutcome'>PA 4/5</div>
         q = item.pop()
         print(q, file=web)
         print("</td><td>", file=web)
@@ -341,26 +341,26 @@ def prepare_faction_stats(f_id, fnamepre, weekno, keeping_faction, keeping_playe
     except:
         os.mkdir(longdname)
     faction_ptname = hashlib.sha1(bytes('faction_player_table' + str(f_id) + fnamepre + str(weekno), 'utf-8')).hexdigest()
-    os.rename("/torntmp/player_table.html",  docroot + "faction/" +  faction_dname + '/'  + faction_ptname +  ".html")
+    os.rename("/torntmp/player_table.html", docroot + "faction/" + faction_dname + '/' + faction_ptname +  ".html")
 
     #  Organised crime counts
     poc = {} # player OC
     c.execute("""select playeroc.player_id,playeroc.oc_calc from playeroc,playerwatch where playerwatch.faction_id=? and  playerwatch.player_id=playeroc.player_id""", (f_id,))
     for whatocs in c:
         poc[str(whatocs[0])] = whatocs[1]
-    oc_ordered = sorted(poc.keys(), key=lambda p: poc[p]) 
+    oc_ordered = sorted(poc.keys(), key=lambda p: poc[p])
     #
     oc_tmp_page=open("/torntmp/oc_count.html", "w")
     print("<!DOCTYPE html><html lang='en'><head><meta charset='utf-8'></head><body><h2>OC Count (award at 100)</h2>", file=oc_tmp_page)
     print("<ul>", file=oc_tmp_page)
     for p_id in oc_ordered:
-        if not p_id in pid2name:
+        if p_id not in pid2name:
             continue
         print("<li>", poc[p_id], pid2name[p_id], "</li>", file=oc_tmp_page)
     print("</ul></body></html>", file=oc_tmp_page)
     oc_tmp_page.close()
     oc_counts = hashlib.sha1(bytes('oc_counts' + str(f_id) + fnamepre + str(weekno), 'utf-8')).hexdigest()
-    os.rename("/torntmp/oc_count.html",  docroot + "faction/" +  faction_dname + '/'  + oc_counts +  ".html")
+    os.rename("/torntmp/oc_count.html", docroot + "faction/" + faction_dname + '/' + oc_counts + ".html")
 
     crime_schedule=[]
     c.execute("""select distinct crime_id from factionoc where faction_id=? order by crime_id desc""", (f_id,))
@@ -381,7 +381,7 @@ def prepare_faction_stats(f_id, fnamepre, weekno, keeping_faction, keeping_playe
     print(faction_name, f_id, file=intro)
     print("</h2>", file=intro)
     print("<br/>Page created at ", time.strftime("%Y-%m-%d %H:%M", time.gmtime(page_time)), file=intro)
-    print('<p/><a href="/faction/' +   faction_dname + '/'  + faction_ptname +  '.html' + '">Player Table</a>', file=intro)
+    print('<p/><a href="/faction/' + faction_dname + '/' + faction_ptname + '.html' + '">Player Table</a>', file=intro)
     print('<p/><hr>', file=intro)
     print('<p/><a href="/faction/' +   faction_dname + '/'  + oc_counts +  '.html' + '">Organised Crime Counts</a>', file=intro)
     print('<p/><hr>', file=intro)
@@ -421,37 +421,37 @@ def prepare_faction_stats(f_id, fnamepre, weekno, keeping_faction, keeping_playe
 
 #START
 
-weekno=int(time.time()/604800)
+weekno = int(time.time()/604800)
 conn = sqlite3.connect('file:/var/torn/torn_db?mode=ro', uri=True)
 c = conn.cursor()
 conn.commit()
 
-fnamepre=None
-c.execute ("""select fnamepre from admin""")
+fnamepre = None
+c.execute("""select fnamepre from admin""")
 for row in c:
-    fnamepre=row[0]
+    fnamepre = row[0]
 
 # display does not use the factionwatch.ignore column
 f_todo = {}
-c.execute ("""select  faction_id,latest_basic,latest_oc,ignore,player_id  from factionwatch""")
+c.execute("""select  faction_id,latest_basic,latest_oc,ignore,player_id  from factionwatch""")
 for row in c:
         if not row[0] in f_todo:
             f_todo[row[0]] = []
         f_todo[row[0]].append(row[4])
 
-docroot='/srv/www/htdocs/'
+docroot = '/srv/www/htdocs/'
 keep_this_faction_htdoc = keep_files.Keep(docroot + 'faction')
 keep_this_player_htdoc = keep_files.Keep(docroot + 'player')
-n_faction=0
+n_faction = 0
 for f in f_todo:
     prepare_faction_stats(f, fnamepre, weekno, keep_this_faction_htdoc, keep_this_player_htdoc, docroot)
     n_faction += 1
 print(n_faction, "factions processed")
 
 watch = {}
-c.execute ("""select player_id,ignore,latest from playerwatch""")
+c.execute("""select player_id,ignore,latest from playerwatch""")
 for row in c:
-    pid,ign,latest=row[0],row[1],row[2]
+    pid, ign, latest = row[0], row[1], row[2]
     if not ign:
         watch[pid] = latest
 
@@ -482,6 +482,6 @@ conn2.commit()
 for pid in watch.keys():
     if pid in p_already:
         continue
-    c2.execute ("""delete from playerwatch where player_id = ?""", (pid,))
+    c2.execute("""delete from playerwatch where player_id = ?""", (pid,))
 conn2.commit()
 c2.close()

@@ -5,17 +5,17 @@ import time
 import web_api
 import dehtml
 import oc_analytics
-import sys
 
-t_start_finegrain=time.time()
+t_start_finegrain = time.time()
 
 player_crime_timestep = 43200
 faction_basic_timestep = 43200
 level_timestep = 86400
 
+
 def get_player(web, p_id):
-    t=int (time.time())
-    c.execute ("""select latest,ignore from playerwatch where player_id=?""",(p_id,))
+    t = int(time.time())
+    c.execute("""select latest,ignore from playerwatch where player_id=?""", (p_id,))
     for row in c:
         if row[0]+player_crime_timestep > t:
             return "TOO RECENT"
@@ -27,8 +27,8 @@ def get_player(web, p_id):
         cx = result[1]['criminalrecord']
         player_id_api = result[2]
         c.execute("""insert into playercrimes values (?,?,?,?, ?,?,?,?, ?,?,?,?)""",
-            (t, player_id_api, p_id,  cx['selling_illegal_products'], cx['theft'], cx['auto_theft'], cx['drug_deals'], cx['computer_crimes'], cx['murder'], cx['fraud_crimes'], cx['other'], cx['total'],))
-        c.execute ("""update playerwatch set latest=? where player_id=?""", (t, p_id,))
+            (t, player_id_api, p_id, cx['selling_illegal_products'], cx['theft'], cx['auto_theft'], cx['drug_deals'], cx['computer_crimes'], cx['murder'], cx['fraud_crimes'], cx['other'], cx['total'],))
+        c.execute("""update playerwatch set latest=? where player_id=?""", (t, p_id,))
         conn.commit()
     else:
         return "FAIL to get crimes"
@@ -37,40 +37,41 @@ def get_player(web, p_id):
     if 'OK' == result[0]:
         ps = result[1]['personalstats']
         player_id_api = result[2]
-        c.execute("""insert into pstats values (?,?,?, ?,?,?, ?,?,?)""", (t, player_id_api, p_id,  ps['jailed'], ps['peoplebusted'], ps['failedbusts'],ps['hospital'],ps['overdosed'], ps['organisedcrimes'],))
+        c.execute("""insert into pstats values (?,?,?, ?,?,?, ?,?,?)""", (t, player_id_api, p_id,  ps['jailed'], ps['peoplebusted'], ps['failedbusts'], ps['hospital'], ps['overdosed'], ps['organisedcrimes'],))
         conn.commit()
         # and drugs XXX some of these may be missing
-        if not 'cantaken' in ps:
+        if 'cantaken' not in ps:
             ps['cantaken'] = 0
-        if not 'exttaken' in ps:
+        if 'exttaken' not in ps:
             ps['exttaken'] = 0
-        if not 'lsdtaken' in ps:
+        if 'lsdtaken' not in ps:
             ps['lsdtaken'] = 0
-        if not 'opitaken' in ps:
+        if 'opitaken' not in ps:
             ps['opitaken'] = 0
-        if not 'shrtaken' in ps:
+        if 'shrtaken' not in ps:
             ps['shrtaken'] = 0
-        if not 'pcptaken' in ps:
+        if 'pcptaken' not in ps:
             ps['pcptaken'] = 0
-        if not 'xantaken' in ps:
+        if 'xantaken' not in ps:
             ps['xantaken'] = 0
-        if not 'victaken' in ps:
+        if 'victaken' not in ps:
             ps['victaken'] = 0
-        if not 'spetaken' in ps:
+        if 'spetaken' not in ps:
             ps['spetaken'] = 0
-        if not 'kettaken' in ps:
+        if 'kettaken' not in ps:
             ps['kettaken'] = 0
-        c.execute("""insert into drugs values (?,?,?, ?,?,?, ?,?,?, ?,?,?)""", (t, p_id,  ps['cantaken'], ps['exttaken'], ps['lsdtaken'],ps['opitaken'],ps['shrtaken'], ps['pcptaken'], ps['xantaken'], ps['victaken'], ps['spetaken'], ps['kettaken'],))
-        c.execute ("""update playerwatch set latest=? where player_id=?""", (t, p_id,))
+        c.execute("""insert into drugs values (?,?,?, ?,?,?, ?,?,?, ?,?,?)""", (t, p_id,  ps['cantaken'], ps['exttaken'], ps['lsdtaken'], ps['opitaken'], ps['shrtaken'], ps['pcptaken'], ps['xantaken'], ps['victaken'], ps['spetaken'], ps['kettaken'],))
+        c.execute("""update playerwatch set latest=? where player_id=?""", (t, p_id,))
         conn.commit()
     else:
         return "FAIL to get personalstats"
     get_readiness(web, p_id, 86400)
     return "OK"
 
+
 def get_faction(web, f_id, oc_interval):
-    t=int (time.time())
-    c.execute ("""select latest_basic,latest_oc,ignore from factionwatch where faction_id=?""",(f_id,))
+    t = int(time.time())
+    c.execute("""select latest_basic,latest_oc,ignore from factionwatch where faction_id=?""",(f_id,))
     for row in c:
         latest_basic=row[0]
         latest_oc=row[1]
@@ -78,7 +79,7 @@ def get_faction(web, f_id, oc_interval):
     if ignore:
         return "IGNORE THIS FACTION"
     if latest_basic+faction_basic_timestep < t:
-        print("plan to query faction ", repr(f_id) , " for BASIC")
+        print("plan to query faction ", repr(f_id), " for BASIC")
         result = web.torn('faction', f_id, 'basic')
         conn.commit()
         if 'OK' == result[0]:
@@ -157,9 +158,9 @@ def get_faction(web, f_id, oc_interval):
                                 c.execute("""update playeroc set oc_calc=oc_calc+1 where player_id=?""", (pu,))
                         print("Recording outcome of OC ", crimeplan, " success is", oc[crimeplan]['success'])
                 else:
-                    cx=oc[crimeplan]
+                    cx = oc[crimeplan]
                     # change from a structure into a string
-                    part =  ','.join( cx["participants"].keys() )
+                    part = ','.join(cx["participants"].keys())
                     c.execute("""insert into factionoc values (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?)""",
                     (t, player_id_api, f_id, crimeplan,
                      cx["crime_id"], cx["crime_name"], part, cx["time_started"], cx["time_completed"],
@@ -172,7 +173,7 @@ def get_faction(web, f_id, oc_interval):
         else:
             print("Problem discovering faction crimes?  ", result)
 
-    return "OK" # XXX TBC
+    return "OK"  # XXX TBC
 
     #
     #XXX TODO
@@ -181,10 +182,11 @@ def get_faction(web, f_id, oc_interval):
     # write to db
     conn.commit()
 
+
 def expire_old_data():
-    now = int (time.time())
+    now = int(time.time())
     day_ago = now - 86400
-    c.execute ("""select last_expire from admin""",)
+    c.execute("""select last_expire from admin""",)
     for when in c:
         if when[0] > day_ago:
             return
@@ -200,60 +202,60 @@ def expire_old_data():
         print("Deleting oc ", row[0])
         oc_to_del.append(row[0])
     for oc in oc_to_del:
-         c.execute("""delete from whodunnit where oc_plan_id=?""", (oc,))
-         c.execute("""delete from compare where oc_a=?""", (oc,))
-         c.execute("""delete from compare where oc_b=?""", (oc,))
-         c.execute("""delete from factionoc where oc_plan_id=?""", (oc,))
-    c.execute ("""update admin set last_expire = ?""",(now,))
+        c.execute("""delete from whodunnit where oc_plan_id=?""", (oc,))
+        c.execute("""delete from compare where oc_a=?""", (oc,))
+        c.execute("""delete from compare where oc_b=?""", (oc,))
+        c.execute("""delete from factionoc where oc_plan_id=?""", (oc,))
+    c.execute("""update admin set last_expire = ?""", (now,))
     conn.commit()
 
 
 def clean_data():
-    now = int (time.time())
+    now = int(time.time())
     day_ago = now - 86400
-    c.execute ("""select last_clean from admin""",)
+    c.execute("""select last_clean from admin""",)
     for when in c:
         if when[0] > day_ago:
             return
 
     #  remove duplication if present in factionwatch
-    for ignore in [0,1]:
+    for ignore in [0, 1]:
         faction = {}
         need_to_clean = 0
-        c.execute ("""select faction_id,player_id from factionwatch WHERE ignore=?""", (ignore,))
+        c.execute("""select faction_id,player_id from factionwatch WHERE ignore=?""", (ignore,))
         for row in c:
-            faction_id,player_id = row
+            faction_id, player_id = row
             if faction_id in faction:
                 # seeing a faction again
                 if player_id in faction[faction_id]:
                     faction[faction_id][player_id].append(row)
                     need_to_clean = 1
                 else:
-                    faction[faction_id][player_id]=[row]
+                    faction[faction_id][player_id] = [row]
             else:
                 # store data on a faction the first time we see it
                 faction[faction_id] = {player_id:[row]}
-        c.execute ("""update admin set last_clean = ?""",(now,))
+        c.execute("""update admin set last_clean = ?""", (now,))
         for f in faction:
             for p in faction[f]:
-                list_length = len( faction[f][p] )
+                list_length = len(faction[f][p])
                 if list_length > 1:
                     # replace multiple rows with one chosen row
                     et=1234
-                    latest_basic=99
-                    latest_oc=99
+                    latest_basic = 99
+                    latest_oc = 99
                     for x in faction[f][p]:
                         if x[0] > et:
                             et = x[0]
-                            latest_basic=x[1]
-                            latest_oc=x[2]
-                    c.execute ("""delete from factionwatch WHERE ignore=? and faction_id=? and player_id=?""", (ignore, f, p,))
+                            latest_basic = x[1]
+                            latest_oc = x[2]
+                    c.execute("""delete from factionwatch WHERE ignore=? and faction_id=? and player_id=?""", (ignore, f, p,))
                     c.execute("""insert into factionwatch values (?, ?,?,?, ?, ?)""", (et, latest_basic, latest_oc, ignore, f, p,))
                     conn.commit()
 
 def refresh_namelevel(web):
     # Get player names and levels
-    et=int (time.time())
+    et = int(time.time())
     player_level_already = {}
     player_level_todo = {}
     player_watched = {}
@@ -263,7 +265,7 @@ def refresh_namelevel(web):
     #
     c.execute("""SELECT player_id FROM playerwatch where ignore=?""",(0,))
     for row in c:
-        player_watched[str(row[0])] = 1;
+        player_watched[str(row[0])] = 1
     #
     for m in player_watched:
         if m in player_level_already:
@@ -288,13 +290,14 @@ def refresh_namelevel(web):
             c.execute("""insert or ignore into namelevel values (?, ?, ?, ?)""", (et, name, level, m,))
         conn.commit()
 
+
 def get_readiness(web, p_id, interval):
     # readiiness for OC
     #
     # test for how recent a result we already have
-    et=int (time.time())
+    et = int (time.time())
     t_already = 0
-    c.execute ("""select max(et) from readiness  where player_id=?""", (p_id,))
+    c.execute("""select max(et) from readiness  where player_id=?""", (p_id,))
     for row in c:
         if row[0]:
             t_already = row[0]
@@ -309,8 +312,8 @@ def get_readiness(web, p_id, interval):
     if 'OK' == result[0]:
         q1_data = result[1]
         frog=dehtml.Dehtml()
-        q1_data['status'][0]  = frog.html_clean(q1_data['status'][0])
-        q1_data['status'][1]  = frog.html_clean(q1_data['status'][1])
+        q1_data['status'][0] = frog.html_clean(q1_data['status'][0])
+        q1_data['status'][1] = frog.html_clean(q1_data['status'][1])
     else:
         return "Fail"
     # and find nerve if possible
@@ -323,28 +326,29 @@ def get_readiness(web, p_id, interval):
     c.execute("""insert into readiness values (?, ?, ?, ?, ?, ?)""", (et, p_id, cur_nerve, max_nerve, q1_data['status'][0], q1_data['status'][1],))
     conn.commit()
 
+
 def oc_count_per_player():
     week_ago = time.time() - 604800
     pstat_oc = {}
-    c.execute ("""select player_id,oc_read from pstats where et > ? order by et""", (week_ago,))
+    c.execute("""select player_id,oc_read from pstats where et > ? order by et""", (week_ago,))
     for row in c:
         pstat_oc[str(row[0])] = row[1]
     #
     calc_oc = {}
-    c.execute ("""select player_id,oc_calc from playeroc""")
+    c.execute("""select player_id,oc_calc from playeroc""")
     for row in c:
         calc_oc[str(row[0])] = row[1]
     #
     for p in pstat_oc.keys():
         if p in calc_oc:
-            c.execute ("""update playeroc set oc_calc=? where player_id=?""", (pstat_oc[p],p,))
+            c.execute("""update playeroc set oc_calc=? where player_id=?""", (pstat_oc[p],p,))
         else:
-            c.execute ("""insert into playeroc values(?,?)""", (p, pstat_oc[p],))
+            c.execute("""insert into playeroc values(?,?)""", (p, pstat_oc[p],))
             calc_oc[str(p)] = pstat_oc[p]
     #
     # all other players in playerwatch need to get inserted too
     need2insert = {}
-    c.execute ("""select player_id from playerwatch""",)
+    c.execute("""select player_id from playerwatch""",)
     for row in c:
         if not str(row[0]) in calc_oc:
             need2insert[row[0]] = 1
@@ -353,7 +357,7 @@ def oc_count_per_player():
         c.execute("""select count(factionoc.crime_name) from factionoc,whodunnit where factionoc.oc_plan_id = whodunnit.oc_plan_id and  whodunnit.player_id = ? and factionoc.initiated = 1 and factionoc.success = 1""", (p,))
         for row in c:
             numcrimes = row[0]
-        c.execute ("""insert into playeroc values(?,?)""", (p, numcrimes,))
+        c.execute("""insert into playeroc values(?,?)""", (p, numcrimes,))
 
 
 ###################################################################################################
@@ -366,13 +370,13 @@ conn.commit()
 
 f_todo = {}
 f_ignore = {}
-c.execute ("""select faction_id,ignore,player_id from factionwatch""")
+c.execute("""select faction_id,ignore,player_id from factionwatch""")
 for row in c:
-    faction_id,ignore,player_id = row
+    faction_id, ignore,player_id = row
     if ignore:
         f_ignore[faction_id] = 1
         continue
-    if not faction_id in f_todo:
+    if faction_id not in f_todo:
         f_todo[faction_id] = []
     f_todo[faction_id].append(player_id)
 
@@ -387,24 +391,24 @@ near = 3600 + int(time.time())
 for f in f_todo:
     all_gang = {}
     oc_soon = []
-    c.execute ("""select oc_plan_id from factionoc where initiated=0 and faction_id=? and time_ready<?""",(f,near,))
+    c.execute("""select oc_plan_id from factionoc where initiated=0 and faction_id=? and time_ready<?""", (f, near,))
     for row in c:
         oc_soon.append(row[0])
     if len(oc_soon):
         # OC due - look more closely at the OC data
         for plan in oc_soon:
             this_gang = {}
-            c.execute ("""select player_id from whodunnit where oc_plan_id==? and faction_id=?""",(plan,f,))
+            c.execute("""select player_id from whodunnit where oc_plan_id==? and faction_id=?""", (plan, f,))
             for row in c:
                 all_gang[row[0]]=1
                 this_gang[row[0]]=1
-            c.execute ("""select crime_name from factionoc where oc_plan_id==? and faction_id=?""",(plan,f,))
+            c.execute("""select crime_name from factionoc where oc_plan_id==? and faction_id=?""", (plan, f,))
             for row in c:
                 crime_name = row[0]
             print("Interest in OC for", f, "a plan is", plan, crime_name, "by", sorted(this_gang.keys()))
-        rc=get_faction(web, f, 900) # get from API the faction data (except where recent data is already known or ignored flag is set)
+        rc=get_faction(web, f, 900)  # get from API the faction data (except where recent data is already known or ignored flag is set)
     else:
-        rc=get_faction(web, f, 7200) # get from API the faction data (except where recent data is already known or ignored flag is set)
+        rc=get_faction(web, f, 7200)  # get from API the faction data (except where recent data is already known or ignored flag is set)
     for player in all_gang:
         get_readiness(web, player, 300)
     if 'OK' != rc:
@@ -415,18 +419,18 @@ for f in f_todo:
 now = int(time.time())
 for f in f_todo:
     maybe_double_booked = []
-    crimes  = {}
+    crimes = {}
     whodunnit = {}
-    c.execute ("""select oc_plan_id,participants from factionoc where faction_id=?""",(f,))
+    c.execute("""select oc_plan_id,participants from factionoc where faction_id=?""", (f,))
     for row in c:
         crimes[row[0]] = row[1]
-    c.execute ("""select distinct oc_plan_id from whodunnit where faction_id=?""",(f,))
+    c.execute("""select distinct oc_plan_id from whodunnit where faction_id=?""", (f,))
     for row in c:
         plan_id = row[0]
         if plan_id in crimes:
             del crimes[plan_id]
     for plan_id in crimes:
-        players=crimes[plan_id].split(',')
+        players = crimes[plan_id].split(',')
         for who in players:
             # Will check player is not in an earlier OC (now invalid).
             maybe_double_booked.append(who)
@@ -436,8 +440,9 @@ for f in f_todo:
     conn.commit()
     # crime cancellation considered
     for who in maybe_double_booked:
-        c.execute ("""select whodunnit.oc_plan_id,factionoc.time_ready from whodunnit,factionoc where whodunnit.faction_id=? and whodunnit.player_id=? and factionoc.initiated=? and  whodunnit.oc_plan_id=factionoc.oc_plan_id order by factionoc.time_started desc""",(f,who,0,))
-        crime_bookings = [] # for one player
+        c.execute("""select whodunnit.oc_plan_id,factionoc.time_ready from whodunnit,factionoc where whodunnit.faction_id=? and whodunnit.player_id=? and factionoc.initiated=? and  whodunnit.oc_plan_id=factionoc.oc_plan_id order by factionoc.time_started desc""",
+            (f, who, 0,))
+        crime_bookings = []  # for one player
         crime_due_at = {}
         for row in c:
             crime_bookings.append(row[0])
@@ -447,20 +452,20 @@ for f in f_todo:
             for oc_multi in crime_bookings:
                 if crime_due_at[oc_multi] > int(t_start_finegrain):
                     print("Future crime ", oc_multi, " cancelled - deleting from factionoc")
-                    c.execute ("""delete from factionoc where oc_plan_id=?""", (oc_multi,))
+                    c.execute("""delete from factionoc where oc_plan_id=?""", (oc_multi,))
                 else:
                     print("Crime ", oc_multi, " set as initiated/failed in factionoc (although it might have been deleted)")
-                    c.execute ("""update factionoc set initiated=1 where oc_plan_id=?""", (oc_multi,))
+                    c.execute("""update factionoc set initiated=1 where oc_plan_id=?""", (oc_multi,))
     conn.commit()
 
 
 p_todo = {}
-c.execute ("""select player_id from playerwatch""")
+c.execute("""select player_id from playerwatch""")
 for row in c:
-    p_todo[row[0]]=1 
+    p_todo[row[0]] = 1
 
 for p in p_todo:
-    rc=get_player(web, p)
+    rc = get_player(web, p)
     if rc == "TOO RECENT":
         continue
     print("return from get_player(" + str(p) + ") is ", rc)
@@ -474,6 +479,6 @@ expire_old_data()
 conn.commit()
 c.close()
 web.apistats()
-t_end_finegrain=time.time()
+t_end_finegrain = time.time()
 print("Time taken is ", t_end_finegrain - t_start_finegrain)
 print("Finished OK")

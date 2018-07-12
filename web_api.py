@@ -3,36 +3,37 @@ import time
 import signal
 import random
 
+
 class Tornapi:
 
     def __init__(self, c):
-        self.c = c # db cursor
+        self.c = c  # db cursor
         self.count = [0, 0, 0]
         self.good_user_key = {}
         self.good_faction_key = {}
         self.suggest_faction_key = {}
         self.pid2ak = {}
         self.default_apikey = None
-        self.api_is_enabled = True # assume this and change it if necessary
+        self.api_is_enabled = True  # assume this and change it if necessary
         #
-        c.execute ("""select default_apikey from admin""")
+        c.execute("""select default_apikey from admin""")
         for row in c:
             self.default_apikey = row[0]
         #
-        c.execute ("""select player_id,short_err,long_err,key  from apikeys""")
+        c.execute("""select player_id,short_err,long_err,key  from apikeys""")
         for row in c:
-            if row[2]: # long-lasting error on this key
+            if row[2]:  # long-lasting error on this key
                 continue
             if (3600 + row[1]) > int(time.time()):
                 continue
             self.pid2ak[row[0]] = row[3]
         #
-        c.execute ("""select ignore,faction_id,player_id from factionwatch""")
+        c.execute("""select ignore,faction_id,player_id from factionwatch""")
         for row in c:
-            ignore,faction_id,player_id = row
+            ignore, faction_id, player_id = row
             if ignore:
                 continue
-            if not faction_id in self.suggest_faction_key:
+            if faction_id not in self.suggest_faction_key:
                 self.suggest_faction_key[faction_id] = []
             if player_id in self.pid2ak:
                 self.suggest_faction_key[faction_id].append(player_id)
@@ -62,7 +63,7 @@ class Tornapi:
                     return ["No key to query faction"]
         else:
             return ["EPARM what"]
-    
+
         if not key_id:
             print("Taking key of last resort ...")
             key_id = self.default_apikey
@@ -89,12 +90,12 @@ class Tornapi:
                 return ["EPARM need right apikey for bars or personalstats"]
         else:
             return ["EPARM how"]
-    
+
         if not ak:
             return ["EPARM no key available"]
-        print("about to query ", what, repr(which) , " for ", how)
-    
-        apiurl="https://api.torn.com/" + what + "/" + str(which) + "?selections=" + how + "&key=" + ak
+        print("about to query ", what, repr(which), " for ", how)
+
+        apiurl = "https://api.torn.com/" + what + "/" + str(which) + "?selections=" + how + "&key=" + ak
         time.sleep(1)
         try:
             signal.alarm(20)
@@ -112,9 +113,9 @@ class Tornapi:
             self.count[1] += 1
             return ["FAIL API JSON"]
 
-        if what=='faction' and how=='crimes':
-            print("faction crime data recieved as",r)
-    
+        if what == 'faction' and how == 'crimes':
+            print("faction crime data recieved as", r)
+
         if 'error' in data:
             # handle Torn API error
             e = data['error']
@@ -122,52 +123,52 @@ class Tornapi:
             error_msg = e['error']
             et = int(time.time())
             self.c.execute("""insert into error values (?,?,?,?, ?,?,?)""",
-                     (et,key_id,what,which,how,code,error_msg,))
-            # short key ban for 5  (7 if faction) 
+                     (et, key_id, what, which, how, code, error_msg,))
+            # short key ban for 5  (7 if faction)
             # long key ban      1  2  10
             if (5 == code) or ((7 == code) and ('faction' == what)):
-                self.c.execute("""update apikeys set short_err=? where player_id=?""", (et,key_id,))
+                self.c.execute("""update apikeys set short_err=? where player_id=?""", (et, key_id,))
             elif (1 == code) or (2 == code) or (10 == code):
-                self.c.execute("""update apikeys set long_err=? where player_id=?""", (et,key_id,))
+                self.c.execute("""update apikeys set long_err=? where player_id=?""", (et, key_id,))
 
             if key_id in self.good_user_key:
                 del self.good_user_key[key_id]
             self.count[2] += 1
             if 9 == code:
-                self.api_is_enabled = False # need to stop making requests
+                self.api_is_enabled = False  # need to stop making requests
             return ["API ERROR what=" + str(what) + " which=" + str(which) + " how=" + str(how), code]
-    
+
         if 'user' == what:
             if 'basic' == how:
-                if not 'level' in data:
+                if 'level' not in data:
                     print("level not found", data)
                     return ['Bad data']
             if 'profile' == how:
-                if not 'level' in data:
+                if 'level' not in data:
                     print("level not found", data)
                     return ['Bad data']
             if 'bars' == how:
-                if not 'nerve' in data:
+                if 'nerve' not in data:
                     print("nerve not found", data)
                     return ['Bad data']
             if 'personalstats' == how:
-                if not 'personalstats' in data:
+                if 'personalstats' not in data:
                     print("personalstats not found", data)
                     return ['Bad data']
             if 'crimes' == how:
-                if not 'criminalrecord' in data:
+                if 'criminalrecord' not in data:
                     print("criminalrecord not found", data)
                     return ['Bad data']
         elif 'faction' == what:
             if 'basic' == how:
-                if not 'members' in data:
+                if 'members' not in data:
                     print("Faction members not found", data)
                     return ['Bad data']
             if 'crimes' == how:
-                if not 'crimes' in data:
+                if 'crimes' not in data:
                     print("Faction crimes not found", data)
                     return ['Bad data']
-    
+
         self.good_user_key[key_id] = 1
         if 'faction' == what:
             self.good_faction_key[which] = key_id
