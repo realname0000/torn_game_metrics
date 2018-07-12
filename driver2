@@ -1,0 +1,29 @@
+#!/bin/bash
+
+cd ~/bin || exit 1
+t=$(date +%s)
+
+
+s=$(stat -t lock/LOCK | cut -d' ' -f9)
+case "$s" in
+1) ;;
+*) echo quitting because of lock ; exit 1;;
+esac
+
+ln lock/LOCK lock/$$
+
+
+s=$(stat -t lock/LOCK | cut -d' ' -f9)
+case "$s" in
+2) ;;
+*) echo quitting because of lock ;  rm -f lock/$$; exit 1;;
+esac
+
+./fake_faction_details.py > ../logs/F_${t}_1 2> ../logs/F_${t}_2
+for rm_empty in ../logs/F_${t}_2
+do
+    [ -f $rm_empty -a ! -s $rm_empty ] && rm $rm_empty
+done
+
+
+rm -f lock/$$
