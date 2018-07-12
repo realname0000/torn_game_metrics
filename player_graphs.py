@@ -109,7 +109,7 @@ class Draw_graph:
                     player_name = pid2name[str(p_id)]
                 player_name = player_name + '[' + str(p_id) + ']'
                 graphname = hashlib.sha1(bytes('player-graph-for' + str(p_id) + self.player_dname + subject, 'utf-8')).hexdigest()
-                short_fname ="player/" + self.player_dname +  "/" +  graphname + ".png"
+                short_fname ="player/" + self.player_dname + "/" + graphname + ".png"
                 long_fname = self.docroot + short_fname
                 try:
                     mtime = os.stat(long_fname).st_mtime

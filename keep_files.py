@@ -1,6 +1,7 @@
 import os
 import subprocess
 
+
 class Keep:
 
     def __init__(self, start_pathname):
@@ -8,18 +9,18 @@ class Keep:
         self.keep_these = {}
         self.iddict = {}
 
-    def gotid(self,pid):
+    def gotid(self, pid):
         self.iddict[pid] = 1
 
     def showid(self):
         return self.iddict.keys()
 
-    def allow(self,subdirectory):
+    def allow(self, subdirectory):
         self.keep_these[subdirectory] = 1
-   
+
     def exterminate(self):
         os.chdir(self.start_pathname)
-        allfiles =  os.listdir('.')
+        allfiles = os.listdir('.')
         for fn in allfiles:
-            if not fn in self.keep_these:
-                subprocess.call(['rm', '-rf', fn], shell=False) 
+            if fn not in self.keep_these:
+                subprocess.call(['rm', '-rf', fn], shell=False)
