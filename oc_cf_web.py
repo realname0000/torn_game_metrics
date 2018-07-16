@@ -22,8 +22,9 @@ class Crime_compare:
         seen_left = {}  # debugging info to catch duplicates
         for oc_pair in my_oc_cf:
             f_id = oc_pair[0]
-            oc_a = oc_pair[1]
-            oc_b = oc_pair[2]
+            crime_name = oc_pair[1]
+            oc_a = oc_pair[2]
+            oc_b = oc_pair[3]
             if oc_a in seen_left:
                 if oc_b in seen_left[oc_a]:
                     print("Suspect duplication for player ", p_id, my_oc_cf)
@@ -31,15 +32,14 @@ class Crime_compare:
                 seen_left[oc_a].append(oc_b)
             else:
                 seen_left[oc_a] = [oc_b]
-            player_1 = oc_pair[3]
-            player_2 = oc_pair[4]
+            player_1 = oc_pair[4]
+            player_2 = oc_pair[5]
             if int(p_id) != int(player_1):
-                print("error with missing player ", p_id, player_1)
+                print("error with missing player", p_id, player_1)
                 continue
             if int(cf) != int(player_2):
                 continue  # ok to miss this
             line = []
-            bug1 = 0
             for oc_plan in [oc_a, oc_b]:
                 gang = ''
                 details = self.one_oc(c, f_id, oc_plan)
@@ -57,7 +57,6 @@ class Crime_compare:
                         gang += '?[' + p + '] '
                 stuff = str(oc_plan) + ' at time ' + str(time_executed) + '<br/> ' + str(crime_name) + ' by ' + gang + '<br/> money=' + str(money_gain) + ' respect=' + str(respect_gain)
                 line.append(stuff)
-                bug1 = 1
             self.queue.append(line)
 
     def iterate(self):
@@ -137,16 +136,17 @@ class Crime_compare:
 
         which_others = {}
         for row in my_oc_cf:
-            if str(row[3]) == str(p_id):
+            if str(row[4]) == str(p_id):
+                which_others[row[5]] = 1
+            elif str(row[5]) == str(p_id):
                 which_others[row[4]] = 1
-            elif str(row[4]) == str(p_id):
-                which_others[row[3]] = 1
 
         for cf in which_others:
             if str(cf) in pid2name:
                 player_name = str(pid2name[str(cf)])
             else:
                 player_name = "?"
+            # XXX To split these by crime type means a change here and in that function.
             t_details = self.table_left_right(c, my_oc_cf, pid2name, dname, p_id, cf, weekno)
             if t_details[0]:
                 print('<br/><a href="' + t_details[1] + '">' + player_name + '[' + str(cf) + ']</a>', file=webpage)

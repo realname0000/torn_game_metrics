@@ -222,17 +222,18 @@ def prepare_faction_stats(f_id, fnamepre, weekno, keeping_faction, keeping_playe
     page_time = int(time.time())  # seconds
     print("faction data for ", f_id)
 
-    all_oc_cf = []
-    c.execute("""select distinct f_id,oc_a,oc_b,player_a,player_b from compare where f_id=?""",(f_id,))
+    all_oc_cf = []  # f_id, crime_name, oc_plan_a, oc_plan_b, player_a, player_b
+    # Obtain the type of crime with a join as this is not in the compare table.
+    c.execute("""select distinct compare.f_id,factionoc.crime_name,compare.oc_a,compare.oc_b,compare.player_a,compare.player_b from compare,factionoc where f_id=? and factionoc.oc_plan_id=compare.oc_a""", (f_id,))
     for row in c:
-        if row[2] < row [1]:
+        if row[3] < row [2]:
             print("Crime order problem in compare ", row)
             continue
         all_oc_cf.append(row)
 
-    pid2name = {} # used while processing each player
+    pid2name = {}  # used while processing each player
     f_data = []
-    c.execute("""select playerwatch.player_id,namelevel.name from playerwatch,namelevel where playerwatch.faction_id=? and  playerwatch.player_id=namelevel.player_id""", (f_id,))
+    c.execute("""select playerwatch.player_id,namelevel.name from playerwatch,namelevel where playerwatch.faction_id=? and playerwatch.player_id=namelevel.player_id""", (f_id,))
     player_todo = []
     for p in c:
         player_todo.append(p[0])
@@ -246,14 +247,14 @@ def prepare_faction_stats(f_id, fnamepre, weekno, keeping_faction, keeping_playe
             show_debug = 1
         my_oc_cf = []
         for pair in all_oc_cf:
-            if int(pair[3]) == int(p):
+            if int(pair[4]) == int(p):
                 # coerce tuple into list
-                notflipped = [pair[0], pair[1], pair[2], pair[3], pair[4]]
+                notflipped = [pair[0], pair[1], pair[2], pair[3], pair[4], pair[5]]
                 my_oc_cf.append(notflipped)
-            elif pair[4] == p:
-                flipped = [pair[0], pair[2], pair[1], pair[4], pair[3]]
+            elif pair[5] == p:
+                flipped = [pair[0], pair[1], pair[3], pair[2], pair[5], pair[4]]
                 my_oc_cf.append(flipped)
-        f_data.append( prepare_player_stats(p, pid2name, page_time, show_debug, fnamepre, weekno, keeping_player, docroot, my_oc_cf, appleorange) )
+        f_data.append(prepare_player_stats(p, pid2name, page_time, show_debug, fnamepre, weekno, keeping_player, docroot, my_oc_cf, appleorange))
         n_player += 1
     print(n_player, "players processed")
 
