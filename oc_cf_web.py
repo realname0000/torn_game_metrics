@@ -17,7 +17,7 @@ class Crime_compare:
                 self.dbcache[plan] = row
                 return self.dbcache[plan]
 
-    def load(self, c, my_oc_cf, pid2name, p_id, cf):
+    def load(self, c, my_oc_cf, pid2name, p_id, cf, chosen_crime_type):
         self.queue = []
         seen_left = {}  # debugging info to catch duplicates
         for oc_pair in my_oc_cf:
@@ -55,9 +55,11 @@ class Crime_compare:
                         gang += pid2name[p] + '[' + p + '] '
                     else:
                         gang += '?[' + p + '] '
-                stuff = str(oc_plan) + ' at time ' + str(time_executed) + '<br/> ' + str(crime_name) + ' by ' + gang + '<br/> money=' + str(money_gain) + ' respect=' + str(respect_gain)
-                line.append(stuff)
-            self.queue.append(line)
+                if crime_name == chosen_crime_type:
+                    stuff = str(oc_plan) + ' at time ' + str(time_executed) + '<br/>' + str(crime_name) + ' by ' + gang + '<br/> money=' + str(money_gain) + ' respect=' + str(respect_gain)
+                    line.append(stuff)
+            if len(line):
+                self.queue.append(line)
 
     def iterate(self):
         try:
@@ -65,8 +67,8 @@ class Crime_compare:
         except:
             return None
 
-    def table_left_right(self, c, my_oc_cf, pid2name, dname, p_id, cf, weekno):
-        rfname = hashlib.sha1(bytes('oc_two_player' + dname + str(p_id) + ':' + str(cf), 'utf-8')).hexdigest()
+    def table_left_right(self, c, my_oc_cf, pid2name, dname, p_id, cf, weekno, chosen_crime_type):
+        rfname = hashlib.sha1(bytes('oc_two_player' + dname + str(p_id) + ':' + str(cf) + chosen_crime_type, 'utf-8')).hexdigest()
         shortname = '/player/' + dname + '/' + rfname + '.html'
         longname = self.docroot + shortname
 
@@ -83,7 +85,7 @@ class Crime_compare:
             print('<th>' + player_name + '[' + str(i) + ']</th>', file=webpage)
         print('</tr>', file=webpage)
 
-        self.load(c, my_oc_cf, pid2name, p_id, cf)
+        self.load(c, my_oc_cf, pid2name, p_id, cf, chosen_crime_type)
         while 1:
             something_to_print = self.iterate()
             if not something_to_print:
@@ -134,24 +136,31 @@ class Crime_compare:
             player_name = "?"
         print("<h2>Comparing " + player_name + "[" + str(p_id) + "] to others:</h2>", file=webpage)
 
-        which_others = {}
+        type_person = {}
         for row in my_oc_cf:
+            oc_type = row[1]
+            if oc_type not in type_person:
+                type_person[oc_type] = {}
+            #
             if str(row[4]) == str(p_id):
-                which_others[row[5]] = 1
+                type_person[oc_type][row[5]] = row[2]
             elif str(row[5]) == str(p_id):
-                which_others[row[4]] = 1
+                type_person[oc_type][row[4]] = row[2]
 
-        for cf in which_others:
-            if str(cf) in pid2name:
-                player_name = str(pid2name[str(cf)])
-            else:
-                player_name = "?"
-            # XXX To split these by crime type means a change here and in that function.
-            t_details = self.table_left_right(c, my_oc_cf, pid2name, dname, p_id, cf, weekno)
-            if t_details[0]:
-                print('<br/><a href="' + t_details[1] + '">' + player_name + '[' + str(cf) + ']</a>', file=webpage)
-            else:
-                print("<br/>" + player_name + "[" + str(cf) + "] ... web page not found", file=webpage)
+        # New bit
+        for ty in sorted(type_person.keys()):
+            print("<hr />", file=webpage)
+            for per in sorted(type_person[ty].keys()):
+                if str(per) in pid2name:
+                    player_name = str(pid2name[str(per)])
+                else:
+                    player_name = "?"
+                t_details = self.table_left_right(c, my_oc_cf, pid2name, dname, p_id, per, weekno, ty)
+                if t_details[0]:
+                    print('<br/><a href="' + t_details[1] + '">' + player_name + '[' + str(per) + ']</a>', file=webpage)
+                else:
+                    print("<br/>" + player_name + "[" + str(per) + "] ... web page not found", file=webpage)
+        print("<hr />", file=webpage)
 
         print("</body></html>", file=webpage)
 
