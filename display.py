@@ -222,9 +222,9 @@ def prepare_faction_stats(f_id, fnamepre, weekno, keeping_faction, keeping_playe
     page_time = int(time.time())  # seconds
     print("faction data for ", f_id)
 
-    all_oc_cf = []  # f_id, crime_name, oc_plan_a, oc_plan_b, player_a, player_b
+    all_oc_cf = []  # f_id, crime_id, oc_plan_a, oc_plan_b, player_a, player_b
     # Obtain the type of crime with a join as this is not in the compare table.
-    c.execute("""select distinct compare.f_id,factionoc.crime_name,compare.oc_a,compare.oc_b,compare.player_a,compare.player_b from compare,factionoc where f_id=? and factionoc.oc_plan_id=compare.oc_a""", (f_id,))
+    c.execute("""select distinct compare.f_id,factionoc.crime_id,compare.oc_a,compare.oc_b,compare.player_a,compare.player_b from compare,factionoc where f_id=? and factionoc.oc_plan_id=compare.oc_a""", (f_id,))
     for row in c:
         if row[3] < row [2]:
             print("Crime order problem in compare ", row)
@@ -378,7 +378,7 @@ def prepare_faction_stats(f_id, fnamepre, weekno, keeping_faction, keeping_playe
     except:
         os.mkdir(introdir)
     intro=open("/torntmp/index.html", "w")
-    print("<!DOCTYPE html><html lang='en'><head><meta charset='utf-8'></head><body><h2>Faction Intro Page: ", file=intro)
+    print("<!DOCTYPE html><html lang='en'><head><meta charset='utf-8'><link rel='stylesheet' type='text/css' href='/style.css' /></head><body><h2>Faction Intro Page: ", file=intro)
     print(faction_name, f_id, file=intro)
     print("</h2>", file=intro)
     print("<br/>Page created at ", time.strftime("%Y-%m-%d %H:%M", time.gmtime(page_time)), file=intro)
@@ -400,7 +400,7 @@ def prepare_faction_stats(f_id, fnamepre, weekno, keeping_faction, keeping_playe
             got_page = retlist[0]
             if got_page:
                 # time parameter to help see whether a page has changed since you last loaded it in the browser
-                print('<li>', crime_type, '<a href="' + retlist[1] +  '?t=' + str(retlist[2]) + '">' +  db_queue[0][0] + '</a></li>', file=intro)
+                print('<div id="oc-type-' + str(crime_type) + '"><li>', crime_type, '<a href="' + retlist[1] +  '?t=' + str(retlist[2]) + '">' +  db_queue[0][0] + '</a></li></div>', file=intro)
     print('</ul>', file=intro)
     print('<p/><hr>', file=intro)
 
