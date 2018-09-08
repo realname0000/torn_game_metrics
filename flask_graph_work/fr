@@ -1,0 +1,5 @@
+export PATH=/home/peabrain/virtualenv/bin:$PATH
+
+export FLASK_ENV=development
+export FLASK_APP=./app.py
+flask run

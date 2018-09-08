@@ -1,0 +1,9 @@
+
+Took inspiration from this page to draw javascript graphs.
+http://benalexkeen.com/creating-graphs-using-flask-and-d3/
+
+run with
+. ./fr
+
+The display.py output includes URLs that point to this flask program
+running behing apache httpd redirection.

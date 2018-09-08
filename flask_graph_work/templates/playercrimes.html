@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <style> /* set the CSS */
+    body { font: 12px Arial;}
+    path {
+      stroke-width: 2;
+      fill: none;
+    }
+    .axis path, .axis line {
+      fill: none;
+      stroke: grey;
+      stroke-width: 1;
+      shape-rendering: crispEdges;
+    }
+    .area {
+      fill: #F0F8FF;
+      stroke-width: 0;
+    }
+  </style>
+</head>
+<body>
+<div id='graphDiv'></div>
+
+<script src="http://d3js.org/d3.v3.min.js"></script>
+<script>
+    var graphData = {{ data.chart_data | safe }}
+
+    // Set the dimensions of the svg
+    var margin = {top: 30, right: 50, bottom: 30, left: 50};
+    var svgWidth = 1200;
+    var svgHeight = 540;
+    var graphWidth = svgWidth - margin.left - margin.right;
+    var graphHeight = svgHeight - margin.top - margin.bottom;
+
+    // Parse the date/time
+    var parseDate = d3.time.format("%Y-%m-%d %H:%M:%S").parse;
+    //var parseDate = d3.time.format("%Y-%m-%d").parse;
+
+    // Set the ranges
+    var x = d3.time.scale().range([0, graphWidth]);
+    var y = d3.scale.linear().range([graphHeight, 0]);
+
+    // Define the axes
+    var xAxis = d3.svg.axis().scale(x)
+        .orient("bottom").ticks(5);
+    var yAxis = d3.svg.axis().scale(y)
+        .orient("left").ticks(25);
+
+    // ### Define the lines for each type of crime
+    var theftLine = d3.svg.line()
+        .x(function(d) { return x(d.Date); })
+        .y(function(d) { return y(d.theft); });
+
+    var totalLine = d3.svg.line()
+        .x(function(d) { return x(d.Date); })
+        .y(function(d) { return y(d.total); });
+
+    var computer_crimesLine = d3.svg.line()
+        .x(function(d) { return x(d.Date); })
+        .y(function(d) { return y(d.computer_crimes); });
+
+    var selling_illegal_productsLine = d3.svg.line()
+        .x(function(d) { return x(d.Date); })
+        .y(function(d) { return y(d.selling_illegal_products); });
+
+    var murderLine = d3.svg.line()
+        .x(function(d) { return x(d.Date); })
+        .y(function(d) { return y(d.murder); });
+
+    var auto_theftLine = d3.svg.line()
+        .x(function(d) { return x(d.Date); })
+        .y(function(d) { return y(d.auto_theft); });
+
+    var drug_dealsLine = d3.svg.line()
+        .x(function(d) { return x(d.Date); })
+        .y(function(d) { return y(d.drug_deals); });
+
+    var otherLine = d3.svg.line()
+        .x(function(d) { return x(d.Date); })
+        .y(function(d) { return y(d.other); });
+
+    var fraud_crimesLine = d3.svg.line()
+        .x(function(d) { return x(d.Date); })
+        .y(function(d) { return y(d.fraud_crimes); });
+
+    // Adds the svg canvas
+    var svg = d3.select("#graphDiv")
+      .append("svg")
+        .attr("width", svgWidth)
+        .attr("height", svgHeight)
+      .append("g")
+        .attr("transform", 
+        "translate(" + margin.left + "," + margin.top + ")")
+
+    // define function
+    function draw(data) {
+      data.forEach(function(d) {
+        d.Date = parseDate(d.et);
+        d.theft = +d.theft;
+        d.total = +d.total;
+        d.murder = +d.murder;
+        d.sellng_illegal_products = +d.sellng_illegal_products;
+        d.computer_crimes = +d.computer_crimes;
+        d.auto_theft = +d.auto_theft;
+        d.drug_deals = +d.drug_deals;
+        d.other = +d.other;
+        d.fraud_crimes = +d.fraud_crimes;
+      });
+      // Scale the range of the data
+      x.domain(d3.extent(data, function(d) { return d.Date; }));
+      y.domain([d3.min(data, function(d) {
+          return Math.min(0, d.total) }),
+          d3.max(data, function(d) {
+          return Math.max(0, d.total) })]);
+      // Add the valueline paths.
+      svg.append("path")
+        .style("stroke", "green")
+        .style("fill", "none")
+        .attr("class", "line")
+        .attr("d", theftLine(data));
+      svg.append("path")
+        .style("stroke", "blue")
+        .style("stroke-dasharray", ("3, 3"))
+        .attr("d", totalLine(data));
+      svg.append("path")
+        .style("stroke", "orange")
+        .attr("d", auto_theftLine(data));
+      svg.append("path")
+        .style("stroke", "orange")
+        .style("stroke-dasharray", ("3, 3"))
+        .attr("d", otherLine(data));
+      svg.append("path")
+        .style("stroke", "blue")
+        .attr("d", drug_dealsLine(data));
+      svg.append("path")
+        .style("stroke", "black")
+        .style("stroke-dasharray", ("3, 3"))
+        .attr("d", fraud_crimesLine(data));
+      svg.append("path")
+        .style("stroke", "brown")
+        .attr("d", selling_illegal_productsLine(data));
+      svg.append("path")
+        .style("stroke", "red")
+        .attr("d", murderLine(data));
+      svg.append("path")
+        .style("stroke", "green")
+        .style("stroke-dasharray", ("5, 5"))
+        .attr("d", computer_crimesLine(data));
+      // Add the X Axis
+      svg.append("g")
+        .attr("class", "x axis")
+        .attr("transform", "translate(0," + graphHeight + ")")
+          .call(xAxis);
+      // Add the Y Axis
+      svg.append("g")
+        .attr("class", "y axis")
+        .call(yAxis);
+      svg.append("text")
+        .attr("transform", "translate("+(graphWidth+3)+","+y(graphData[0].theft)+")")
+        .attr("dy", ".35em")
+        .attr("text-anchor", "start")
+        .style("fill", "green")
+        .text("theft");
+      svg.append("text")
+        .attr("transform", "translate("+(graphWidth+3)+","+y(graphData[0].murder)+")")
+        .attr("dy", ".35em")
+        .attr("text-anchor", "start")
+        .style("fill", "red")
+        .text("murder");
+      svg.append("text")
+        .attr("transform", "translate("+(graphWidth+3)+","+y(graphData[0].total)+")")
+        .attr("dy", ".35em")
+        .attr("text-anchor", "start")
+        .style("fill", "blue")
+        .text("total");
+      svg.append("text")
+        .attr("transform", "translate("+(graphWidth+3)+","+y(graphData[0].other)+")")
+        .attr("dy", ".35em")
+        .attr("text-anchor", "start")
+        .style("fill", "orange")
+        .text("other");
+      svg.append("text")
+        .attr("transform", "translate("+(graphWidth+3)+","+y(graphData[0].auto_theft)+")")
+        .attr("dy", ".35em")
+        .attr("text-anchor", "start")
+        .style("fill", "orange")
+        .text("auto");
+      svg.append("text")
+        .attr("transform", "translate("+(graphWidth+3)+","+y(graphData[0].drug_deals)+")")
+        .attr("dy", ".35em")
+        .attr("text-anchor", "start")
+        .style("fill", "blue")
+        .text("drug");
+      svg.append("text")
+        .attr("transform", "translate("+(graphWidth+3)+","+y(graphData[0].fraud_crimes)+")")
+        .attr("dy", ".35em")
+        .attr("text-anchor", "start")
+        .style("fill", "black")
+        .text("fraud");
+      svg.append("text")
+        .attr("transform", "translate("+(graphWidth+3)+","+y(graphData[0].computer_crimes)+")")
+        .attr("dy", ".35em")
+        .attr("text-anchor", "start")
+        .style("fill", "green")
+        .text("compute");
+      svg.append("text")
+        .attr("transform", "translate("+(graphWidth+3)+","+y(graphData[0].selling_illegal_products)+")")
+        .attr("dy", ".35em")
+        .attr("text-anchor", "start")
+        .style("fill", "brown")
+        .text("selling");
+    };
+
+draw(graphData);
+
+</script>
+</body>
+</html>

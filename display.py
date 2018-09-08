@@ -1,13 +1,14 @@
 #!/usr/bin/python3
 
+import hashlib
+import hmac
+import keep_files
+import oc_cf_web
+import oc_history_to_text
+import os
+import player_graphs
 import sqlite3
 import time
-import os
-import hashlib
-import oc_history_to_text
-import oc_cf_web
-import keep_files
-import player_graphs
 
 
 def seconds_text(s):
@@ -29,6 +30,11 @@ def prepare_player_stats(p_id, pid2name, page_time, show_debug, fnamepre, weekno
     if show_debug:
         print("player data for ", p_id)
         print("use directory ", player_dname)
+
+    # Get hmac details once (outside loops)
+    hmac_key_f = open('/var/torn/hmac_key', 'r')
+    hmac_key = bytes(hmac_key_f.read(),'utf-8')
+    hmac_key_f.close()
 
     longdname = docroot + 'player/' + player_dname
     try:
@@ -203,7 +209,13 @@ def prepare_player_stats(p_id, pid2name, page_time, show_debug, fnamepre, weekno
     print("<tr><th>Most days idle</br>(no crime)</th><th>OC success</th><th>event list</th></tr>", file=pg_index)
     print("<tr><td>", blob[4], "</td><td>", blob[1], "</td><td>", blob[0], "</td></tr>", file=pg_index)
     print("</table>", file=pg_index)
-    #
+
+    # link to flash graph (parameters protected by HMAC)
+    graph_selection = ( str(p_id) + 'crime' + str(int(time.time())) ).encode("utf-8")
+    hmac_hex = hmac.new(hmac_key, graph_selection, digestmod=hashlib.sha1).hexdigest()
+    print('<br/><a href="/rhubarb/graph/' + str(graph_selection)[2:-1] + '-' +  hmac_hex + '">detailed crime graph</a>', file=pg_index)
+
+    # picture file graphs
     graph_action=player_graphs.Draw_graph(docroot, c, weekno, player_dname)
     graph_urls = graph_action.player(pid2name, p_id)
     for gu in graph_urls:
