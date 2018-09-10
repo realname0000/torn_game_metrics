@@ -132,7 +132,9 @@ def prepare_player_stats(p_id, pid2name, page_time, show_debug, fnamepre, weekno
         pstats = 'nerve ' + str(nerve_details[2]) + '<br/>' + pstats
     else:
         pstats = 'nerve ?<br/>' + pstats
+    got_drug_bool = False
     if drug_details and drug_details[1]:
+        got_drug_bool = True
         pstats = pstats + '<br/>xanax ' + str(drug_details[1])
     else:
         pstats = pstats + '<br/>xanax ?'
@@ -160,7 +162,7 @@ def prepare_player_stats(p_id, pid2name, page_time, show_debug, fnamepre, weekno
     else:
         days_idle = str(days_idle)
 
-    # column of recenvy
+    # column of recency
     c.execute("""select et,selling_illegal_products,theft,auto_theft,drug_deals,computer_crimes,murder,fraud_crimes,other,total from playercrimes where  player_id = ? order by et""", (p_id,))
     crim_record = [-1 ,-1, -1, -1, -1, -1, -1, -1, -1]
     timestamp = [0, 0, 0, 0, 0, 0, 0, 0, 0]
@@ -210,10 +212,16 @@ def prepare_player_stats(p_id, pid2name, page_time, show_debug, fnamepre, weekno
     print("<tr><td>", blob[4], "</td><td>", blob[1], "</td><td>", blob[0], "</td></tr>", file=pg_index)
     print("</table>", file=pg_index)
 
-    # link to flash graph (parameters protected by HMAC)
+    # link to flash graphs (parameters protected by HMAC)
+    # crime
     graph_selection = ( str(p_id) + 'crime' + str(int(time.time())) ).encode("utf-8")
     hmac_hex = hmac.new(hmac_key, graph_selection, digestmod=hashlib.sha1).hexdigest()
     print('<br/><a href="/rhubarb/graph/' + str(graph_selection)[2:-1] + '-' +  hmac_hex + '">detailed crime graph</a>', file=pg_index)
+    # and drug graph
+    if got_drug_bool:
+        graph_selection = ( str(p_id) + 'drug' + str(int(time.time())) ).encode("utf-8")
+        hmac_hex = hmac.new(hmac_key, graph_selection, digestmod=hashlib.sha1).hexdigest()
+        print('<br/><a href="/rhubarb/graph/' + str(graph_selection)[2:-1] + '-' +  hmac_hex + '">detailed drug graph</a>', file=pg_index)
 
     # picture file graphs
     graph_action=player_graphs.Draw_graph(docroot, c, weekno, player_dname)

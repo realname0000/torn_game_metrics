@@ -38,7 +38,12 @@ def index(what_graph):
         return render_template("bad_graph_request.html")
 
     # calc correct hmac
-    graph_selection = ( str(p_id) + 'crime' + str(timestamp) ).encode("utf-8")
+    if 'crime' == graph_type:
+        graph_selection = ( str(p_id) + 'crime' + str(timestamp) ).encode("utf-8")
+    elif 'drug' == graph_type:
+        graph_selection = ( str(p_id) + 'drug' + str(timestamp) ).encode("utf-8")
+    else:
+        return render_template("bad_graph_request.html")
     hmac_hex = hmac.new(hmac_key, graph_selection, digestmod=hashlib.sha1).hexdigest()
 
     # test for correct hmac
@@ -54,6 +59,9 @@ def index(what_graph):
     if 'crime' == graph_type:
         parm = (int(p_id),)
         df = pd.read_sql_query("select et,selling_illegal_products,theft,auto_theft,drug_deals,computer_crimes,murder,fraud_crimes,other,total from playercrimes where player_id=? order by et", conn, params=parm)
+    elif 'drug' == graph_type:
+        parm = (int(p_id),)
+        df = pd.read_sql_query("select et,cantaken,exttaken,lsdtaken,opitaken,shrtaken,pcptaken,xantaken,victaken,spetaken,kettaken from drugs where player_id=? order by et", conn, params=parm)
     else:
         return render_template("bad_graph_request.html")
     conn.close()
@@ -67,7 +75,12 @@ def index(what_graph):
     chart_data = df.to_dict(orient='records')
     data = {'chart_data': chart_data}
 
-    return render_template("playercrimes.html", data=data)
+    if 'crime' == graph_type:
+        return render_template("playercrimes.html", data=data)
+    elif 'drug' == graph_type:
+        return render_template("drug.html", data=data)
+    else:
+        return render_template("bad_graph_request.html")
 
 if __name__ == "__main__":
     app.run(debug=True)
