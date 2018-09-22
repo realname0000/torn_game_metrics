@@ -100,4 +100,17 @@ CREATE TABLE player_compare_t (
 CREATE TABLE playeroc (
         player_id       int primary key not NULL,
         oc_calc         int not NULL DEFAULT 1);
+CREATE TABLE drugs (
+        et             int not NULL,
+        player_id      int not NULL,
+        cantaken       int not NULL,
+        exttaken       int not NULL,
+        lsdtaken       int not NULL,
+        opitaken       int not NULL,
+        shrtaken       int not NULL,
+        pcptaken       int not NULL,
+        xantaken       int not NULL,
+        victaken       int not NULL,
+        spetaken       int not NULL,
+        kettaken       int not NULL);
 /* No STAT tables available */

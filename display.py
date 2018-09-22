@@ -443,7 +443,7 @@ def prepare_faction_stats(f_id, fnamepre, weekno, keeping_faction, keeping_playe
 #START
 
 weekno = int(time.time()/604800)
-conn = sqlite3.connect('file:/var/torn/torn_db?mode=ro', uri=True)
+conn = sqlite3.connect('file:/var/torn/readonly_db?mode=ro', uri=True)
 c = conn.cursor()
 conn.commit()
 
@@ -460,7 +460,7 @@ for row in c:
             f_todo[row[0]] = []
         f_todo[row[0]].append(row[4])
 
-docroot = '/srv/www/htdocs/'
+docroot = '/srv/www/vhosts/tornutopia.com/'
 keep_this_faction_htdoc = keep_files.Keep(docroot + 'faction')
 keep_this_player_htdoc = keep_files.Keep(docroot + 'player')
 n_faction = 0

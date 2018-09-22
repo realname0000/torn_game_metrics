@@ -23,12 +23,12 @@
 <body>
 <div id='graphDiv'></div>
 
-<script src="http://d3js.org/d3.v3.min.js"></script>
+<script src="https://d3js.org/d3.v3.min.js"></script>
 <script>
     var graphData = {{ data.chart_data | safe }}
 
     // Set the dimensions of the svg
-    var margin = {top: 30, right: 50, bottom: 30, left: 50};
+    var margin = {top: 30, right: 60, bottom: 30, left: 50};
     var svgWidth = 1200;
     var svgHeight = 540;
     var graphWidth = svgWidth - margin.left - margin.right;
@@ -182,7 +182,7 @@
         .style("fill", "orange")
         .text("other");
       svg.append("text")
-        .attr("transform", "translate("+(graphWidth+3)+","+y(graphData[0].auto_theft)+")")
+        .attr("transform", "translate("+(graphWidth+40)+","+y(graphData[0].auto_theft)+")")
         .attr("dy", ".35em")
         .attr("text-anchor", "start")
         .style("fill", "orange")

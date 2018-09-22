@@ -6,4 +6,4 @@ run with
 . ./fr
 
 The display.py output includes URLs that point to this flask program
-running behing apache httpd redirection.
+running behind apache httpd redirection.

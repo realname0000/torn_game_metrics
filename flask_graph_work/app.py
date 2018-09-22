@@ -55,7 +55,7 @@ def index(what_graph):
         print("timestamp disagreement is old:", timestamp)
         return render_template("bad_graph_request.html")
 
-    conn = sqlite3.connect('file:/var/torn/torn_db?mode=ro', uri=True)
+    conn = sqlite3.connect('file:/var/torn/readonly_db?mode=ro', uri=True)
     if 'crime' == graph_type:
         parm = (int(p_id),)
         df = pd.read_sql_query("select et,selling_illegal_products,theft,auto_theft,drug_deals,computer_crimes,murder,fraud_crimes,other,total from playercrimes where player_id=? order by et", conn, params=parm)

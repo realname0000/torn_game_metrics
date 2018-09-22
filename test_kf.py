@@ -2,7 +2,7 @@
 
 import keep_files
 
-qwert = keep_files.Keep('/srv/www/htdocs/player')
+qwert = keep_files.Keep('/srv/www/vhosts/tornutopia.com/player')
 
 
 # qwert.allow()

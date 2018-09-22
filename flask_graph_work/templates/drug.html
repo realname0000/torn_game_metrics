@@ -23,12 +23,12 @@
 <body>
 <div id='graphDiv'></div>
 
-<script src="http://d3js.org/d3.v3.min.js"></script>
+<script src="https://d3js.org/d3.v3.min.js"></script>
 <script>
     var graphData = {{ data.chart_data | safe }}
 
     // Set the dimensions of the svg
-    var margin = {top: 30, right: 50, bottom: 30, left: 50};
+    var margin = {top: 30, right: 60, bottom: 30, left: 60};
     var svgWidth = 1200;
     var svgHeight = 540;
     var graphWidth = svgWidth - margin.left - margin.right;
@@ -77,6 +77,10 @@
         .x(function(d) { return x(d.Date); })
         .y(function(d) { return y(d.opitaken); });
 
+    var kettakenLine = d3.svg.line()
+        .x(function(d) { return x(d.Date); })
+        .y(function(d) { return y(d.kettaken); });
+
     var spetakenLine = d3.svg.line()
         .x(function(d) { return x(d.Date); })
         .y(function(d) { return y(d.spetaken); });
@@ -105,6 +109,7 @@
         d.victaken = +d.victaken;
         d.cantaken = +d.cantaken;
         d.opitaken = +d.opitaken;
+        d.kettaken = +d.kettaken;
         d.spetaken = +d.spetaken;
         d.shrtaken = +d.shrtaken;
       });
@@ -136,6 +141,9 @@
         .attr("d", opitakenLine(data));
       svg.append("path")
         .style("stroke", "black")
+        .attr("d", kettakenLine(data));
+      svg.append("path")
+        .style("stroke", "black")
         .style("stroke-dasharray", ("3, 3"))
         .attr("d", shrtakenLine(data));
       svg.append("path")
@@ -159,25 +167,25 @@
         .call(yAxis);
       svg.append("text")
         .attr("transform", "translate("+(graphWidth+30)+","+y(graphData[0].lsdtaken)+")")
-        .attr("dy", ".35em")
+        .attr("dy", ".90em")
         .attr("text-anchor", "start")
         .style("fill", "green")
         .text("lsd");
       svg.append("text")
         .attr("transform", "translate("+(graphWidth+3)+","+y(graphData[0].xantaken)+")")
-        .attr("dy", ".35em")
+        .attr("dy", ".00em")
         .attr("text-anchor", "start")
         .style("fill", "red")
         .text("xanax");
       svg.append("text")
         .attr("transform", "translate("+(graphWidth+3)+","+y(graphData[0].pcptaken)+")")
-        .attr("dy", ".35em")
+        .attr("dy", ".40em")
         .attr("text-anchor", "start")
         .style("fill", "blue")
         .text("pcp");
       svg.append("text")
         .attr("transform", "translate("+(graphWidth+3)+","+y(graphData[0].spetaken)+")")
-        .attr("dy", ".35em")
+        .attr("dy", ".10em")
         .attr("text-anchor", "start")
         .style("fill", "orange")
         .text("speed");
@@ -188,26 +196,32 @@
         .style("fill", "orange")
         .text("cannabis");
       svg.append("text")
-        .attr("transform", "translate("+(graphWidth+3)+","+y(graphData[0].opitaken)+")")
-        .attr("dy", ".35em")
+        .attr("transform", "translate("+(graphWidth+10)+","+y(graphData[0].opitaken)+")")
+        .attr("dy", ".70em")
         .attr("text-anchor", "start")
         .style("fill", "blue")
         .text("opium");
       svg.append("text")
-        .attr("transform", "translate("+(graphWidth+30)+","+y(graphData[0].shrtaken)+")")
-        .attr("dy", ".35em")
+        .attr("transform", "translate("+(graphWidth+3)+","+y(graphData[0].kettaken)+")")
+        .attr("dy", ".55em")
+        .attr("text-anchor", "start")
+        .style("fill", "black")
+        .text("ketamine");
+      svg.append("text")
+        .attr("transform", "translate("+(graphWidth+10)+","+y(graphData[0].shrtaken)+")")
+        .attr("dy", ".60em")
         .attr("text-anchor", "start")
         .style("fill", "black")
         .text("shrooms");
       svg.append("text")
         .attr("transform", "translate("+(graphWidth+3)+","+y(graphData[0].victaken)+")")
-        .attr("dy", ".35em")
+        .attr("dy", ".65em")
         .attr("text-anchor", "start")
         .style("fill", "green")
         .text("vicodin");
       svg.append("text")
         .attr("transform", "translate("+(graphWidth+3)+","+y(graphData[0].exttaken)+")")
-        .attr("dy", ".35em")
+        .attr("dy", ".70em")
         .attr("text-anchor", "start")
         .style("fill", "brown")
         .text("ecstasy");
