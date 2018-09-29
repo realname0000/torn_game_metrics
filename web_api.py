@@ -54,6 +54,8 @@ class Tornapi:
             if len(choose_from):
                 key_id = random.choice(list(self.good_user_key.keys()))
         elif 'faction' == what:
+            if which in self.good_faction_key:
+                self.suggest_faction_key[which].insert(0,self.good_faction_key[which])
             print("Suggestions: ", self.suggest_faction_key)
             if which in self.suggest_faction_key:
                 print("look for key in ", self.suggest_faction_key[which])
@@ -72,10 +74,13 @@ class Tornapi:
             ak = self.pid2ak[key_id]
 
         if 'basic' == how:
-            # do on usr or faction
+            # do on player or faction
             pass
+        elif ('attacknews' == how) or ('attacknewsfull' == how):
+            if 'faction' != what:
+                return ["EPARM what/how"]
         elif 'crimes' == how:
-            # do on usr or faction
+            # do on player or faction
             pass
         elif 'profile' == how:
             if 'user' != what:
@@ -167,6 +172,10 @@ class Tornapi:
             if 'crimes' == how:
                 if 'crimes' not in data:
                     print("Faction crimes not found", data)
+                    return ['Bad data']
+            if ('attacknews' == how) or ('attacknewsfull' == how):
+                if 'attacknews' not in data:
+                    print("Faction attacknews not found", data)
                     return ['Bad data']
 
         self.good_user_key[key_id] = 1

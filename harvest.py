@@ -5,6 +5,7 @@ import time
 import web_api
 import dehtml
 import oc_analytics
+import re
 
 t_start_finegrain = time.time()
 
@@ -12,6 +13,8 @@ player_crime_timestep = 43200
 faction_basic_timestep = 43200
 level_timestep = 86400
 
+re_named = re.compile('^<a href = "http://www.torn.com/profiles.php.XID=(\d+)">([\w-]+)</a> (\w+) <a href = "http://www.torn.com/profiles.php.XID=(\d+)">([\w-]+)</a>([\w +().-]*)$')
+re_someone = re.compile('^Someone (\w+) <a href = "http://www.torn.com/profiles.php.XID=(\d+)">([\w-]+)</a>([\w +().-]*)$')
 
 def get_player(web, p_id):
     t = int(time.time())
@@ -79,7 +82,7 @@ def get_faction(web, f_id, oc_interval):
     if ignore:
         return "IGNORE THIS FACTION"
     if latest_basic+faction_basic_timestep < t:
-        print("plan to query faction ", repr(f_id), " for BASIC")
+        print("plan to query faction ", repr(f_id), "for BASIC")
         result = web.torn('faction', f_id, 'basic')
         conn.commit()
         if 'OK' == result[0]:
@@ -118,10 +121,10 @@ def get_faction(web, f_id, oc_interval):
                 c.execute("""update factiondisplay set et=? where f_id=?""", (t, f_id,))
             conn.commit()
         else:
-            print("Problem discovering faction basic?  ", result)
+            print("Problem discovering faction basic? ", result)
 
-    if latest_oc+oc_interval < t:  # comparing latest_basic
-        print("plan to query faction ", repr(f_id) , " for CRIMES")
+    if latest_oc+oc_interval < t:
+        print("plan to query faction ", repr(f_id), "for CRIMES")
         # Now do faction crimes - OC
         result = web.torn('faction', f_id, 'crimes')
         conn.commit()
@@ -172,6 +175,51 @@ def get_faction(web, f_id, oc_interval):
             conn.commit()
         else:
             print("Problem discovering faction crimes?  ", result)
+
+    # no time requirement for attacknews
+    attack_already_logged = {}
+    c.execute("""select evid from combat_events where fid=?""", (f_id,))
+    for row in c:
+        attack_already_logged[str(row[0])] = 1
+    for qtype in ('attacknews', 'attacknewsfull'):
+        print("plan to query faction ", repr(f_id), "for attacks", qtype)
+        result = web.torn('faction', f_id, qtype)
+        conn.commit()
+        if 'OK' != result[0]:
+            print("API call for", qtype, "returned", result[0])
+            continue
+        events = result[1]['attacknews']
+        att_counted = 0
+        for ev in events:
+            if ev in attack_already_logged:
+                continue # skip an event we already have
+            news = events[ev]['news']
+            parts_n = re_named.match(news)
+            parts_s = re_someone.match(news)
+            if parts_n:
+                att_id   = parts_n.group(1)
+                att_name = parts_n.group(2)
+                verb     = parts_n.group(3)
+                def_id   = parts_n.group(4)
+                def_name = parts_n.group(5)
+                outcome  = parts_n.group(6)
+                c.execute("""insert into combat_events values (?,?,?, ?,?,?, ?,?,?)""", (f_id, ev, events[ev]['timestamp'], att_name, att_id, verb, def_name, def_id, outcome,))
+                att_counted += 1
+                attack_already_logged[ev] = 1
+            elif parts_s:
+                verb     = parts_s.group(1)
+                def_id   = parts_s.group(2)
+                def_name = parts_s.group(3)
+                outcome  = parts_s.group(4)
+                c.execute("""insert into combat_events values (?,?,?, ?,?,?, ?,?,?)""", (f_id, ev, events[ev]['timestamp'], 'Someone', 0, verb, def_name, def_id, outcome,))
+                att_counted += 1
+                attack_already_logged[ev] = 1
+            else:
+                print("NOT UNDERSTOOD:", news, file=sys.stderr)
+        conn.commit()
+        print("Number of attacks inserted is", att_counted)
+        if att_counted < 99:
+            break # do not continue from attacknews to attacknewsfull
 
     return "OK"  # XXX TBC
 
