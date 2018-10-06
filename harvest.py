@@ -6,6 +6,7 @@ import web_api
 import dehtml
 import oc_analytics
 import re
+import sys
 
 t_start_finegrain = time.time()
 
@@ -176,7 +177,7 @@ def get_faction(web, f_id, oc_interval):
         else:
             print("Problem discovering faction crimes?  ", result)
 
-    # no time requirement for attacknews
+    # no time requirement for attacknews - read it every time
     attack_already_logged = {}
     c.execute("""select evid from combat_events where fid=?""", (f_id,))
     for row in c:
@@ -203,7 +204,9 @@ def get_faction(web, f_id, oc_interval):
                 def_id   = parts_n.group(4)
                 def_name = parts_n.group(5)
                 outcome  = parts_n.group(6)
-                c.execute("""insert into combat_events values (?,?,?, ?,?,?, ?,?,?)""", (f_id, ev, events[ev]['timestamp'], att_name, att_id, verb, def_name, def_id, outcome,))
+                frog=dehtml.Dehtml()
+                clean_outcome = frog.html_clean(outcome)
+                c.execute("""insert into combat_events values (?,?,?, ?,?,?, ?,?,?)""", (f_id, ev, events[ev]['timestamp'], att_name, att_id, verb, def_name, def_id, clean_outcome,))
                 att_counted += 1
                 attack_already_logged[ev] = 1
             elif parts_s:
@@ -211,7 +214,9 @@ def get_faction(web, f_id, oc_interval):
                 def_id   = parts_s.group(2)
                 def_name = parts_s.group(3)
                 outcome  = parts_s.group(4)
-                c.execute("""insert into combat_events values (?,?,?, ?,?,?, ?,?,?)""", (f_id, ev, events[ev]['timestamp'], 'Someone', 0, verb, def_name, def_id, outcome,))
+                frog=dehtml.Dehtml()
+                clean_outcome = frog.html_clean(outcome)
+                c.execute("""insert into combat_events values (?,?,?, ?,?,?, ?,?,?)""", (f_id, ev, events[ev]['timestamp'], 'Someone', 0, verb, def_name, def_id, clean_outcome,))
                 att_counted += 1
                 attack_already_logged[ev] = 1
             else:
@@ -238,6 +243,8 @@ def expire_old_data():
     for when in c:
         if when[0] > day_ago:
             return
+    weeks_ago = now - (86400 * 28)
+    c.execute("""delete from combat_events where et<?""", (weeks_ago,))
     year_ago = now - (86400 * 365)
     c.execute("""delete from playercrimes where et<?""", (year_ago,))
     c.execute("""delete from readiness where et<?""", (year_ago,))
@@ -255,6 +262,7 @@ def expire_old_data():
         c.execute("""delete from compare where oc_b=?""", (oc,))
         c.execute("""delete from factionoc where oc_plan_id=?""", (oc,))
     c.execute("""update admin set last_expire = ?""", (now,))
+    c.execute("""vacuum""", (now,))
     conn.commit()
 
 

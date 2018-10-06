@@ -6,7 +6,7 @@ import hashlib
 
 class Draw_graph:
 
-    def __init__(self, docroot, c, weekno, player_dname):
+    def __init__(self, docroot, c, var_interval_no, player_dname):
         self.docroot = docroot
         self.c = c
         self.player_dname = player_dname

@@ -65,7 +65,7 @@ class Crime_compare:
         except:
             return None
 
-    def table_left_right(self, c, my_oc_cf, pid2name, dname, p_id, cf, weekno, chosen_crime_type):
+    def table_left_right(self, c, my_oc_cf, pid2name, dname, p_id, cf, var_interval_no, chosen_crime_type):
         rfname = hashlib.sha1(bytes('oc_two_player' + dname + str(p_id) + ':' + str(cf) + ':' + str(chosen_crime_type), 'utf-8')).hexdigest()
         shortname = '/player/' + dname + '/' + rfname + '.html'
         longname = self.docroot + shortname
@@ -101,7 +101,7 @@ class Crime_compare:
         mtime = os.stat(longname).st_mtime
         return [1, shortname, int(mtime)]
 
-    def web(self, c, my_oc_cf, pid2name, dname, p_id, weekno):
+    def web(self, c, my_oc_cf, pid2name, dname, p_id, var_interval_no):
         # return value is [ success/failure, the HREF of the web page, mtime of web page ]
 
         # what time is our data?
@@ -160,7 +160,7 @@ class Crime_compare:
                     player_name = str(pid2name[str(per)])
                 else:
                     player_name = "?"
-                t_details = self.table_left_right(c, type_person[ty][per], pid2name, dname, p_id, per, weekno, ty)
+                t_details = self.table_left_right(c, type_person[ty][per], pid2name, dname, p_id, per, var_interval_no, ty)
                 if t_details[0]:
                     print('<br/><a href="' + t_details[1] + '">' + player_name + '[' + str(per) + ']</a>', file=webpage)
                 else:

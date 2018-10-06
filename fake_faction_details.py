@@ -89,9 +89,54 @@ def player_stats(c, players):
             stats[0] = now
         # random additions
         for i in range(1,len(stats)):
-            if (random.random() > 0.3) and (i != 8):
+            if (random.random() > 0.7) and (i != 8):
                 stats[i] += 1
         c.execute("""insert into pstats values(?,?,?,?, ?,?,?,?, ?)""", (stats[0], 0, p_id, stats[1],  stats[2], stats[3], stats[4], stats[5], stats[6],))
+
+        # drug section
+        drug_dose = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0] # initial guess of 0
+        c.execute("""select cantaken,exttaken,lsdtaken,opitaken,shrtaken,pcptaken,xantaken,victaken,spetaken,kettaken from drugs where player_id = ? order by et desc limit 1""", (p_id,))
+        for row in c:
+            drug_dose = list(row) # add to previous total if there is one
+        drug_choice = int(random.random() * 14)
+        if drug_choice > 9:
+            drug_choice = 6 # xanax is taken more often
+        drug_dose[drug_choice] += 1
+        # unshift 2 items
+        drug_dose.insert(0,p_id)
+        drug_dose.insert(0,now)
+        c.execute("""insert into drugs values(?,?, ?,?,?,?,?, ?,?,?,?,?)""", tuple(drug_dose))
+
+        # nerve
+        nerve_data = [now, p_id, int(random.random() * 55), 55, 'Okay', '']
+        c.execute("""insert into readiness values(?,?, ?,?,?,?)""", tuple(nerve_data))
+
+        # attack /defend
+        p_name = '?'
+        c.execute("""select name from namelevel where player_id = ?""", (p_id,))
+        for row in c:
+            p_name = row[0]
+        # choose random opponent
+        (def_name, def_id) = ('Duke', 4)
+        rrr = random.random();
+        if (rrr > 0.66):
+            (def_name, def_id) = ('Bob_the_shopkeeper', -1000)
+        elif (rrr > 0.33):
+            (def_name, def_id) = ('Leslie', 15)
+        gain = int(random.random() * 400) /100
+        defend = [ -99, 0, now, p_name, p_id, 'attacked', def_name, def_id, '(+'+str(gain)+')']
+        c.execute("""insert into combat_events values(?, ?,?,?,?, ?,?,?,?)""", tuple(defend))
+        #
+        (att_name, att_id) = ('Duke', 4)
+        rrr = random.random();
+        if (rrr > 0.66):
+            (att_name, att_id) = ('Bob_the_shopkeeper', -1000)
+        elif (rrr > 0.33):
+            (att_name, att_id) = ('Leslie', 15)
+        loss = int(random.random() * 400) /100
+        defend = [ -99, 0, now, att_name, att_id, 'hospitalised', p_name, p_id, '(-'+str(loss)+')']
+        c.execute("""insert into combat_events values(?, ?,?,?,?, ?,?,?,?)""", tuple(defend))
+
     conn.commit()
 
 

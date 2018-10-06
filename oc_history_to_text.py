@@ -44,7 +44,7 @@ class Crime_history:
     #        player or faction or other source?
     #        filename precursor
     #     player_id as p_id needed for status history
-    def crime2html(self, c, db_queue, pid2name, need_status, source_type, dname, p_id, weekno):
+    def crime2html(self, c, db_queue, pid2name, need_status, source_type, dname, p_id, var_interval_no):
         now = time.time()
         # return value is [ success/failure, the HREF of the web page, mtime of web page ]
         how_recent = 0

@@ -20,10 +20,10 @@ def seconds_text(s):
         return str(int(s/3600)) + 'h'
 
 
-def prepare_player_stats(p_id, pid2name, page_time, show_debug, fnamepre, weekno, keeping_player, docroot, my_oc_cf, appleorange):
+def prepare_player_stats(p_id, pid2name, page_time, show_debug, fnamepre, var_interval_no, keeping_player, docroot, my_oc_cf, appleorange):
     blob = []
-    old_player_dname = hashlib.sha1(bytes('player-directory-for' + str(p_id) + fnamepre + str(weekno-1), 'utf-8')).hexdigest()
-    player_dname = hashlib.sha1(bytes('player-directory-for' + str(p_id) + fnamepre + str(weekno), 'utf-8')).hexdigest()
+    old_player_dname = hashlib.sha1(bytes('player-directory-for' + str(p_id) + fnamepre + str(var_interval_no-1), 'utf-8')).hexdigest()
+    player_dname = hashlib.sha1(bytes('player-directory-for' + str(p_id) + fnamepre + str(var_interval_no), 'utf-8')).hexdigest()
     keeping_player.gotid(p_id)
     keeping_player.allow(old_player_dname)
     keeping_player.allow(player_dname)
@@ -45,7 +45,7 @@ def prepare_player_stats(p_id, pid2name, page_time, show_debug, fnamepre, weekno
     # produce OC comparison for this player
     oc_cf_link = None
     if len(my_oc_cf):
-        retlist = appleorange.web(c, my_oc_cf, pid2name, player_dname, p_id, weekno)
+        retlist = appleorange.web(c, my_oc_cf, pid2name, player_dname, p_id, var_interval_no)
         if show_debug:
             print(retlist)
         got_page = retlist[0]
@@ -63,7 +63,7 @@ def prepare_player_stats(p_id, pid2name, page_time, show_debug, fnamepre, weekno
     if len(db_queue):
         # what should the name of the web page be?
         hist=oc_history_to_text.Crime_history(docroot)
-        retlist = hist.crime2html(c, db_queue, pid2name, 1, 'player', player_dname, p_id, weekno)
+        retlist = hist.crime2html(c, db_queue, pid2name, 1, 'player', player_dname, p_id, var_interval_no)
         if show_debug:
             print(retlist)
         got_page = retlist[0]
@@ -77,6 +77,16 @@ def prepare_player_stats(p_id, pid2name, page_time, show_debug, fnamepre, weekno
     #
     if oc_cf_link:
         crimes_planned += oc_cf_link
+
+    # attacknews
+    flask_parm = ( str(p_id) + 'attack' + str(int(time.time())) ).encode("utf-8")
+    hmac_hex = hmac.new(hmac_key, flask_parm, digestmod=hashlib.sha1).hexdigest()
+    crimes_planned += '<br/><a href="/rhubarb/attack/' + str(flask_parm)[2:-1] + '-' +  hmac_hex + '">attack</a>'
+    #
+    flask_parm = ( str(p_id) + 'defend' + str(int(time.time())) ).encode("utf-8")
+    hmac_hex = hmac.new(hmac_key, flask_parm, digestmod=hashlib.sha1).hexdigest()
+    crimes_planned += '<br/><a href="/rhubarb/attack/' + str(flask_parm)[2:-1] + '-' +  hmac_hex + '">defend</a>'
+
 
     # Calc OC rations
     crimes_done = {}
@@ -224,21 +234,21 @@ def prepare_player_stats(p_id, pid2name, page_time, show_debug, fnamepre, weekno
         print('<br/><a href="/rhubarb/graph/' + str(graph_selection)[2:-1] + '-' +  hmac_hex + '">detailed drug graph</a>', file=pg_index)
 
     # picture file graphs
-    graph_action=player_graphs.Draw_graph(docroot, c, weekno, player_dname)
+    graph_action=player_graphs.Draw_graph(docroot, c, var_interval_no, player_dname)
     graph_urls = graph_action.player(pid2name, p_id)
     for gu in graph_urls:
         print('<br/><img src="' + gu + '" alt="timeseries graph">', file=pg_index)
     #
     print("</body></html>", file=pg_index)
     pg_index.close()
-    player_index = hashlib.sha1(bytes('player-index' + str(p_id) + fnamepre + str(weekno), 'utf-8')).hexdigest()
+    player_index = hashlib.sha1(bytes('player-index' + str(p_id) + fnamepre + str(var_interval_no), 'utf-8')).hexdigest()
     os.rename("/torntmp/begin_graphs.html", docroot + "player/" + player_dname + "/" + player_index + ".html")
     col1_answer.append("/player/" + player_dname + "/" + player_index + ".html")
 
     blob.append(col1_answer)
     return blob
 
-def prepare_faction_stats(f_id, fnamepre, weekno, keeping_faction, keeping_player, docroot):
+def prepare_faction_stats(f_id, fnamepre, var_interval_no, keeping_faction, keeping_player, docroot):
     page_time = int(time.time())  # seconds
     print("faction data for ", f_id)
 
@@ -274,7 +284,7 @@ def prepare_faction_stats(f_id, fnamepre, weekno, keeping_faction, keeping_playe
             elif pair[5] == p:
                 flipped = [pair[0], pair[1], pair[3], pair[2], pair[5], pair[4]]
                 my_oc_cf.append(flipped)
-        f_data.append(prepare_player_stats(p, pid2name, page_time, show_debug, fnamepre, weekno, keeping_player, docroot, my_oc_cf, appleorange))
+        f_data.append(prepare_player_stats(p, pid2name, page_time, show_debug, fnamepre, var_interval_no, keeping_player, docroot, my_oc_cf, appleorange))
         n_player += 1
     print(n_player, "players processed")
 
@@ -290,8 +300,8 @@ def prepare_faction_stats(f_id, fnamepre, weekno, keeping_faction, keeping_playe
     for tt in c:
         oc_time = page_time - tt[0]
 
-    old_faction_dname = hashlib.sha1(bytes('faction_variable_dir' + str(f_id) + fnamepre + str(weekno-1), 'utf-8')).hexdigest()
-    faction_dname = hashlib.sha1(bytes('faction_variable_dir' + str(f_id) + fnamepre + str(weekno), 'utf-8')).hexdigest()
+    old_faction_dname = hashlib.sha1(bytes('faction_variable_dir' + str(f_id) + fnamepre + str(var_interval_no-1), 'utf-8')).hexdigest()
+    faction_dname = hashlib.sha1(bytes('faction_variable_dir' + str(f_id) + fnamepre + str(var_interval_no), 'utf-8')).hexdigest()
     keeping_faction.allow(old_faction_dname)
     keeping_faction.allow(faction_dname)
 
@@ -299,6 +309,7 @@ def prepare_faction_stats(f_id, fnamepre, weekno, keeping_faction, keeping_playe
     print("<!DOCTYPE html><html lang='en'><head><meta charset='utf-8'></head><body><h2>Faction Player Table:", file=web)
     print(faction_name, f_id, file=web)
     print("</h2>", file=web)
+    print("<h3>This page URL changes every", (page_lifetime/3600) , "hours - if outdated get a new one by logging in again.</h3>", file=web)
     print("<br/>Page created at ", time.strftime("%Y-%m-%d %H:%M", time.gmtime(page_time)), file=web)
     print("<br/>Faction organised crime data " + seconds_text(oc_time) + " old", file=web)
     print("<p>The first and last colums contain clickable links.<p/>", file=web)
@@ -361,7 +372,7 @@ def prepare_faction_stats(f_id, fnamepre, weekno, keeping_faction, keeping_playe
         mtime = os.stat(longdname).st_mtime
     except:
         os.mkdir(longdname)
-    faction_ptname = hashlib.sha1(bytes('faction_player_table' + str(f_id) + fnamepre + str(weekno), 'utf-8')).hexdigest()
+    faction_ptname = hashlib.sha1(bytes('faction_player_table' + str(f_id) + fnamepre + str(var_interval_no), 'utf-8')).hexdigest()
     os.rename("/torntmp/player_table.html", docroot + "faction/" + faction_dname + '/' + faction_ptname +  ".html")
 
     #  Organised crime counts
@@ -380,7 +391,7 @@ def prepare_faction_stats(f_id, fnamepre, weekno, keeping_faction, keeping_playe
         print("<li>", poc[p_id], pid2name[p_id], "</li>", file=oc_tmp_page)
     print("</ul></body></html>", file=oc_tmp_page)
     oc_tmp_page.close()
-    oc_counts = hashlib.sha1(bytes('oc_counts' + str(f_id) + fnamepre + str(weekno), 'utf-8')).hexdigest()
+    oc_counts = hashlib.sha1(bytes('oc_counts' + str(f_id) + fnamepre + str(var_interval_no), 'utf-8')).hexdigest()
     os.rename("/torntmp/oc_count.html", docroot + "faction/" + faction_dname + '/' + oc_counts + ".html")
 
     crime_schedule=[]
@@ -416,7 +427,7 @@ def prepare_faction_stats(f_id, fnamepre, weekno, keeping_faction, keeping_playe
         #
         if len(db_queue):
             hist=oc_history_to_text.Crime_history(docroot)
-            retlist = hist.crime2html(c, db_queue, pid2name, 0, 'faction', faction_dname, crime_type, weekno)
+            retlist = hist.crime2html(c, db_queue, pid2name, 0, 'faction', faction_dname, crime_type, var_interval_no)
             got_page = retlist[0]
             if got_page:
                 # time parameter to help see whether a page has changed since you last loaded it in the browser
@@ -442,7 +453,8 @@ def prepare_faction_stats(f_id, fnamepre, weekno, keeping_faction, keeping_playe
 
 #START
 
-weekno = int(time.time()/604800)
+page_lifetime = 43200  # used to be weekly but now under a day
+var_interval_no = int(time.time()/page_lifetime)
 conn = sqlite3.connect('file:/var/torn/readonly_db?mode=ro', uri=True)
 c = conn.cursor()
 conn.commit()
@@ -465,7 +477,7 @@ keep_this_faction_htdoc = keep_files.Keep(docroot + 'faction')
 keep_this_player_htdoc = keep_files.Keep(docroot + 'player')
 n_faction = 0
 for f in f_todo:
-    prepare_faction_stats(f, fnamepre, weekno, keep_this_faction_htdoc, keep_this_player_htdoc, docroot)
+    prepare_faction_stats(f, fnamepre, var_interval_no, keep_this_faction_htdoc, keep_this_player_htdoc, docroot)
     n_faction += 1
 print(n_faction, "factions processed")
 
