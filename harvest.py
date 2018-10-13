@@ -14,8 +14,8 @@ player_crime_timestep = 43200
 faction_basic_timestep = 43200
 level_timestep = 86400
 
-re_named = re.compile('^<a href = "http://www.torn.com/profiles.php.XID=(\d+)">([\w-]+)</a> (\w+) <a href = "http://www.torn.com/profiles.php.XID=(\d+)">([\w-]+)</a>([\w +().-]*)$')
-re_someone = re.compile('^Someone (\w+) <a href = "http://www.torn.com/profiles.php.XID=(\d+)">([\w-]+)</a>([\w +().-]*)$')
+re_named = re.compile('^<a href = "http://www.torn.com/profiles.php.XID=(\d+)">([\w-]+)</a> (\w+) <a href = "http://www.torn.com/profiles.php.XID=(\d+)">([\w-]+)<.a>([\w, +().-]*)$')
+re_someone = re.compile('^Someone (\w+) <a href = "http://www.torn.com/profiles.php.XID=(\d+)">([\w-]+)<.a>([\w, +().-]*)$')
 
 def get_player(web, p_id):
     t = int(time.time())
@@ -182,6 +182,8 @@ def get_faction(web, f_id, oc_interval):
     c.execute("""select evid from combat_events where fid=?""", (f_id,))
     for row in c:
         attack_already_logged[str(row[0])] = 1
+    #
+    total_att_counted = 0
     for qtype in ('attacknews', 'attacknewsfull'):
         print("plan to query faction ", repr(f_id), "for attacks", qtype)
         result = web.torn('faction', f_id, qtype)
@@ -222,10 +224,11 @@ def get_faction(web, f_id, oc_interval):
             else:
                 print("NOT UNDERSTOOD:", news, file=sys.stderr)
         conn.commit()
-        print("Number of attacks inserted is", att_counted)
+        total_att_counted += att_counted
         if att_counted < 99:
             break # do not continue from attacknews to attacknewsfull
 
+    print("Number of attacks inserted is", total_att_counted)
     return "OK"  # XXX TBC
 
     #
@@ -262,8 +265,8 @@ def expire_old_data():
         c.execute("""delete from compare where oc_b=?""", (oc,))
         c.execute("""delete from factionoc where oc_plan_id=?""", (oc,))
     c.execute("""update admin set last_expire = ?""", (now,))
-    c.execute("""vacuum""", (now,))
     conn.commit()
+    c.execute("""vacuum""")
 
 
 def clean_data():

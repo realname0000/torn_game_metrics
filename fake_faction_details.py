@@ -164,7 +164,7 @@ def playercrime(c, players):
             crimedata[0] += (86400 * 5)
         #
         r= int(random.random() * 8)    
-        increase = int( 288/how_many_points[r] )
+        increase = int( 72/how_many_points[r] )
         crimedata[r + 3] += increase
         crimedata[11] += increase
         #
