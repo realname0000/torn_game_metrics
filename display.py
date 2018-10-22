@@ -453,8 +453,7 @@ def prepare_faction_stats(f_id, fnamepre, var_interval_no, keeping_faction, keep
 
 #START
 
-page_lifetime = 43200  # used to be weekly but now under a day
-var_interval_no = int(time.time()/page_lifetime)
+
 conn = sqlite3.connect('file:/var/torn/readonly_db?mode=ro', uri=True)
 c = conn.cursor()
 conn.commit()
@@ -463,6 +462,12 @@ fnamepre = None
 c.execute("""select fnamepre from admin""")
 for row in c:
     fnamepre = row[0]
+
+page_lifetime = 86400 # default, changed by db
+c.execute("""select file_lifetime from admin""")
+for row in c:
+    page_lifetime = row[0]
+var_interval_no = int(time.time()/page_lifetime)
 
 # display does not use the factionwatch.ignore column
 f_todo = {}

@@ -17,6 +17,7 @@ level_timestep = 86400
 re_named = re.compile('^<a href = "http://www.torn.com/profiles.php.XID=(\d+)">([\w-]+)</a> (\w+) <a href = "http://www.torn.com/profiles.php.XID=(\d+)">([\w-]+)<.a>([\w, +().-]*)$')
 re_someone = re.compile('^Someone (\w+) <a href = "http://www.torn.com/profiles.php.XID=(\d+)">([\w-]+)<.a>([\w, +().-]*)$')
 
+
 def get_player(web, p_id):
     t = int(time.time())
     c.execute("""select latest,ignore from playerwatch where player_id=?""", (p_id,))
@@ -87,8 +88,17 @@ def get_faction(web, f_id, oc_interval):
         result = web.torn('faction', f_id, 'basic')
         conn.commit()
         if 'OK' == result[0]:
+            respect=result[1]['respect']
+            c.execute("""insert into factionrespect values(?,?,?)""", (t,f_id,respect,))
+            lead=result[1]['leader']
+            if lead:
+                c.execute("""update factiondisplay set leader_id=? where f_id=?""", (lead,f_id,))
+            colead=result[1]['co-leader']
+            if colead:
+                c.execute("""update factiondisplay set coleader_id=? where f_id=?""", (colead,f_id,))
+            #
             members=result[1]['members']
-            # Because I have not figured out insert if not exists
+            # Because I have not figured out "insert if not exists", "on conflict" kind of thing
             player_faction_already = {}
             c.execute("""SELECT player_id,faction_id FROM playerwatch""")
             for row in c:
@@ -98,7 +108,8 @@ def get_faction(web, f_id, oc_interval):
                     if player_faction_already[m] != f_id:
                         c.execute("""update playerwatch set faction_id=? where player_id=?""", (f_id, m,))
                 else:
-                    c.execute("""insert or ignore into playerwatch values (?, ?,?, ?, ?)""", (t, 0, 0, f_id, m,))
+                    print("Inserting player", m, "into faction", f_id)
+                    c.execute("""insert into playerwatch values (?, ?,?, ?, ?)""", (t, 0, 0, f_id, m,))
             conn.commit()
             # exclude non-members
             for m in members:
@@ -253,6 +264,7 @@ def expire_old_data():
     c.execute("""delete from readiness where et<?""", (year_ago,))
     c.execute("""delete from pstats where et<?""", (year_ago,))
     c.execute("""delete from drugs where et<?""", (year_ago,))
+    c.execute("""delete from factionrespect where et<?""", (year_ago,))
     # These next ones are more complicated because of foreign keys.
     c.execute("""select oc_plan_id from factionoc where et<?""", (year_ago,))
     oc_to_del = []
