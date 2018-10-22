@@ -118,7 +118,7 @@
       y.domain([d3.min(data, function(d) {
           return Math.min(0, d.spetaken) }),
           d3.max(data, function(d) {
-          return Math.max(1000, d.xantaken) })]);
+          return Math.max(100, d.xantaken) })]);
       // Add the valueline paths.
       svg.append("path")
         .style("stroke", "green")

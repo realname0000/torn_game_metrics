@@ -1,0 +1,21 @@
+<html>
+<head></head>
+<body>
+
+<h2>Register - Use this while logged into torn as you will be set a challenge.</h2>
+<form method="POST">
+	{{ form.hidden_tag() }}
+
+
+	Numeric Torn ID:
+	{{ form.username() }}
+
+	<br />
+
+	New Tornutopia password:
+	{{ form.password() }}
+
+	<button type="submit" value="register" name="register">Register</button>
+</form>
+</body>
+</html>

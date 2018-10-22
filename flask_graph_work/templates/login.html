@@ -1,0 +1,23 @@
+<html>
+<head></head>
+<body>
+
+<h2>Login</h2>
+<form method="POST">
+	{{ form.hidden_tag() }}
+
+	Numeric Torn ID:
+	{{ form.username() }}
+
+	<br />
+
+	Tornutopia password:
+	{{ form.password() }}
+
+	<button type="submit" value="login" name="login">Log In</button>
+
+</form>
+	<p>
+	If your account does not exist yet register <a href="/rhubarb/register">here</a>.
+</body>
+</html>
