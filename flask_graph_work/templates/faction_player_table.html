@@ -5,7 +5,10 @@
 <a href="/rhubarb/logout">LOGOUT</a>
 <br/>
 <br/>
-<a href="/rhubarb/settings">tornutopia settings</a>
+<a href="/rhubarb/home">home</a>
+<br/>
+<br/>
+<a href="/rhubarb/faction_ov">faction overview</a>
 
 <h3>Faction player table displayed to {{player.name}}[{{u}}]</h2>
 <p>
@@ -15,7 +18,7 @@ Your faction is {{ faction_sum.name }} [{{ faction_sum.fid }}] with leaders: {{ 
 You are recognised as a leader so the player table will be shown.
 
 <table border="1">
-<tr><th>Player</th><th>Crime</th><th>Number</th><th>Recency</th><th>Most days idle</th><th>Stats<br/>(needs API key)</th><th>Age of data</th><th>OC success</th><th>Event list</tr>
+	<tr><th>Player</th><th>Crime</th><th>Number</th><th>Recency</th><th>Most days idle</th><th>Stats<br/>(needs API key)</th><th>Age of data</th><th>OC success</th><th>OC breakdown<br/>(within last year)</th><th>Event list</tr>
 
 {% for pid in pt %}
 <tr>
@@ -48,16 +51,19 @@ You are recognised as a leader so the player table will be shown.
          {% endfor %}
         </td>
         <td>
+	{{pt[pid].oc_calc}}
+        </td>
+        <td>
          {% for key in pt[pid].oc.keys() %}
          <div>{{key}} {{pt[pid].oc[key]}}</div>
          {% endfor %}
         </td>
         <td>
          {% for e in pt[pid].events %}
-         {{ e }}<br/>
+	  <a href="{{ e }}">player OC history</\><br/>
          {% endfor %}
          {% for key in pt[pid].attacklinks.keys() %}
-         <a href="/rhubarb/attack/{{key}}">{{pt[pid].attacklinks[key]}}</a></br>
+          <a href="/rhubarb/attack/{{key}}">{{pt[pid].attacklinks[key]}}</a></br>
          {% endfor %}
         </td>
 

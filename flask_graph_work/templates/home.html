@@ -18,11 +18,15 @@ You are recognised as a leader and get a <a href="/rhubarb/faction_ov">faction o
 {% else %}
 You are not a leader and do not see other players here.
 {% endif %}
+<p>
+{% if faction_sum['respect_graph_url'] %}
+<img src="/{{ faction_sum['respect_graph_url'] }}" alt="timeseries graph of faction respect"></a>
+{% endif %}
 
 <h3>Your Torn player</h3>
 
 <table border="1">
-	<tr><th>Player</th><th>Crime</th><th>Number</th><th>Recency</th><th>Most days idle</th><th>Stats<br/>(needs API key)</th><th>Age of data</th><th>OC success</th><th>Event list</tr>
+	<tr><th>Player</th><th>Crime</th><th>Number</th><th>Recency</th><th>Most days idle</th><th>Stats<br/>(needs API key)</th><th>Age of data</th><th>OC success</th><th>OC breakdown<br/>(within last year)</th><th>Event list</tr>
 <tr>
 
 	<td>{{player.name}}<br/>[{{player.u}}]<br/>{{player.level}}</td>
@@ -54,14 +58,16 @@ You are not a leader and do not see other players here.
          {% endfor %}
 	</td>
 	<td>
+	{{player.oc_calc}}
+	</td>
+	<td>
          {% for key in player.oc.keys() %}
 	 <div>{{key}} {{player.oc[key]}}</div>
          {% endfor %}
         </td>
 	<td>
-         {% for e in player.events %}
-	 {{ e }}<br/>
-         {% endfor %}
+	<a href="{{ player.events }}">OC history</a>
+         <br/>
          {% for key in player.attacklinks.keys() %}
 	 <a href="/rhubarb/attack/{{key}}">{{player.attacklinks[key]}}</a></br>
          {% endfor %}

@@ -12,14 +12,19 @@ import re
 import sqlite3
 import time
 import read_sqlite
+import dehtml
 
 re.numeric = re.compile('^[0-9]+$')
 token = re.compile('^([-\d]+)([a-z]+)(\d+)-([0-9a-f]+)$')
+# f_id, crimetype, timestamp, (either number or 'history'),  hmac
+oc_history_picker = re.compile('^([-\d]+)-([0-9])-([0-9]+)-([0-9a-z]+)-([0-9a-f]+)$')
 
 now = int(time.time())
-hmac_key_f = open('/var/torn/hmac_key', 'r')
-hmac_key = bytes(hmac_key_f.read(),'utf-8')
-hmac_key_f.close()
+
+# Now there is just one way to read this.
+rodb = read_sqlite.Rodb()
+hmac_key = rodb.getkey()
+rodb = None
 
 app = Flask(__name__)
 
@@ -203,6 +208,7 @@ def jsgraph(what_graph):
     timestamp = None
     given_hmac = None
     df = None
+    right_now = int(time.time())
 
     # what graph is this meant to produce?
     re_object = token.match(what_graph)
@@ -229,7 +235,7 @@ def jsgraph(what_graph):
         print("HMAC disagreement")
         return render_template("bad_graph_request.html")
     # test for acceptable timestamp
-    if ((int(timestamp) + 86400) < now):
+    if ((int(timestamp) + 86400) < right_now):
         print("timestamp is old:", timestamp)
         return render_template("bad_graph_request.html")
 
@@ -261,6 +267,70 @@ def jsgraph(what_graph):
     else:
         return render_template("bad_graph_request.html")
 
+#=================================================================================
+
+@app.route("/rhubarb/faction_oc_history/<tid_cn_t>", methods=['GET'])
+@app.route("/faction_oc_history/<tid_cn_t>", methods=['GET'])
+def faction_oc_history(tid_cn_t):
+    # fid, cn, history-or-et
+    tid = None
+    cn = None
+    timestamp = None
+    history_column = None
+    hmac_given = None
+    re_object = oc_history_picker.match(tid_cn_t)
+    if re_object:
+        tid = re_object.group(1)
+        cn = re_object.group(2)
+        timestamp = re_object.group(3)
+        history_column = re_object.group(4)
+        hmac_given = re_object.group(5)
+    else:
+        return "failed to discover the history intended by this click"
+
+    # check time and hmac
+    right_now = int(time.time())
+    if ((int(timestamp) + 86400) < right_now):
+        return "link too old"
+        return redirect('/logout')
+    # either show all the data (up to the last year) or just a recent extract
+    long_search = False
+    if history_column == 'history':
+        long_search = True
+        flask_parm = (str(tid) + '-' + str(cn) + '-' + str(timestamp) + '-history' ).encode("utf-8")
+    else:
+        flask_parm = (str(tid) + '-' + str(cn) + '-' + str(timestamp)).encode("utf-8")
+    hmac_hex_hist = hmac.new(hmac_key, flask_parm, digestmod=hashlib.sha1).hexdigest()
+    if not hmac_hex_hist == hmac_given:
+        return "bad HMAC"
+
+    player = {'name':'no name'}
+    rodb = read_sqlite.Rodb()
+    if int(cn):
+        try:
+            faction_sum = rodb.get_faction_for_player(current_user.username)
+            if not faction_sum['fid'] == int(tid):
+                # viewing from outside faction
+                return "organised crime data - need to be logged in and in the faction to see that"
+        except:
+            # viewing from outside faction
+            return "organised crime data - need to be logged in and in the faction to see that"
+    else:
+        # This is a player request and not a faction request - indicated by crime number 0.
+        # no need to authenticate the user but we do want the name
+        player = rodb.get_player_data(tid)
+
+    # try:
+    octable, future = rodb.get_oc(tid, cn, long_search) # "tid" might be fid or pid
+    # except:
+    #   # example data
+    #   octable = [[ 'Today', 8, 'failed to fetch octable', {'4':'Duke', '317178':'Flex'} , {'money':100, 'respect':5, 'delay':1800} ],
+    #              [ 'Yesterday', 8, 'failed to fetch octable', {'1455847':'Para'} , {'result':'FAIL', 'delay':60} ]]
+
+    
+    return render_template("completed_oc.html", cn=int(cn), player_name=player['name'], octable=octable, make_links=True if int(tid) >0 else False)
+
+#=================================================================================
 
 @app.route("/rhubarb/attack/<player_role_t>", methods=['GET'])
 @app.route("/attack/<player_role_t>", methods=['GET'])
@@ -270,6 +340,7 @@ def combat_events(player_role_t):
     timestamp = None
     given_hmac = None
     df = None
+    right_now = int(time.time())
 
     # what page is this meant to produce, attack or defend?
     re_object = token.match(player_role_t)
@@ -289,11 +360,10 @@ def combat_events(player_role_t):
     # test for correct hmac
     if not hmac.compare_digest(hmac_hex, given_hmac):
         print("HMAC disagreement")
-        return render_template("bad_graph_request.html")
+        return "bad HMAC"
     # test for acceptable timestamp
-    if ((int(timestamp) + 86400) < now):
-        print("timestamp is old:", timestamp)
-        return render_template("bad_graph_request.html")
+    if ((int(timestamp) + 86400) < right_now):
+        return "timestamp too old"
 
     tbefore = int(time.time()) - 3600 # an hour ago
     parm = (int(p_id), tbefore,)
@@ -313,12 +383,13 @@ def combat_events(player_role_t):
     old_et = 0
     old_att_id = 0
     old_def_id = 0
+    safe_text = dehtml.Dehtml()
     for i in c:
         et = i[0]
         if (old_et == et) and (old_att_id == i[2]) and (old_def_id == i[5]):
             continue
         iso_time = datetime.datetime.utcfromtimestamp(et).isoformat()
-        items.append( { 'et': iso_time,  'att_name': i[1],  'att_id': i[2], 'verb': i[3], 'def_name': i[4], 'def_id': i[5],  'outcome': i[6]} )
+        items.append( { 'et': iso_time,  'att_name': safe_text.html_clean(i[1]),  'att_id': i[2], 'verb': i[3], 'def_name': safe_text.html_clean(i[4]), 'def_id': i[5],  'outcome': safe_text.html_clean(i[6])} )
         att_count += 1
         old_et = et
         old_att_id = i[2]

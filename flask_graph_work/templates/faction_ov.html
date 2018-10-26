@@ -1,5 +1,7 @@
 <html>
-<head></head>
+<head>
+<link rel='stylesheet' type='text/css' href='/style.css' />
+</head>
 <body>
 
 <a href="/rhubarb/logout">LOGOUT</a>
@@ -10,27 +12,52 @@
 <h2>Faction overview as seen by {{player.name}}[{{u}}]</h2>
 <p>
 Your faction is {{ faction_sum.name }}[{{ faction_sum.fid }}] with leaders: {{ faction_sum.leadername}}[{{ faction_sum.leader}}] and {{ faction_sum.coleadername}}[{{ faction_sum.coleader}}].
+
 </p>
 {% if is_leader %}
-<p>
-TBC source of data: how recent and which players supplied it
-<p>
-TBC respect/time graph
-<p>
-TBC completed OC listing
-<p>
-TBC link to OC count by player
-<p>
-<a href="/rhubarb/faction_player_table">faction player table</a>
-<p>
-TBC link to control view of faction data by members that are not leaders
-<p>
+    <p>
+    <h3>Source of faction data in API</h3>
+    Faction data obtained by these API keys:
+    {% for k in faction_sum.api_ids_used_by_faction.keys() %}
+    <br/>{{k}} at {{faction_sum.api_ids_used_by_faction[k]}}
+    {% endfor %}
+    <p>
+    API keys that could be enabled to collect for the faction:<br/>
+    {% for key in faction_sum.api_id_list.keys() %}
+    The API key for {{key}} was used at {{faction_sum.api_id_list[key]}}.<br/>
+    {% endfor %}
+    <p>
+    <h3>Outcomes of completed OC</h3>
+    <table border="1">
+    <tr><th>Crime type</th><th>Crime title</th><th>Long history</th><th>Recently completed</th></tr>
+    {% for r in faction_sum.oc_table %}
+    <tr>
+	    <td>{{r}}</td>
+	    <td><div id="oc-type-{{r}}">{{ faction_sum.oc_table[r][0] }}</div></td>
+	    <td><a href="{{ faction_sum.oc_table[r][1] }}">crimes over last year</a></td>
+	    <td><a href="{{ faction_sum.oc_table[r][2] }}">{{ faction_sum.oc_table[r][3] }}</a></td>
+    
+    </tr>
+    {% endfor %}
+    </table>
 
+    <p>
+    <h3>Faction player table</h3>
+    <a href="/rhubarb/faction_player_table">faction player table</a>
+    <p>
+    <h3>Faction data access control</h3>
+    TBC link to control view of faction data by members that are not leaders
 {% else %}
-You are not a leader/coleader as of the latest information on record.
-<br/>
-Parts of the faction you can see are ... nothing as yet.
+    You are not a leader/coleader as of the latest information on record.
+    <p>
+    Parts of the faction you can see are ... still to be determined.
 {% endif %}
 
+<p>
+{% if faction_sum['respect_graph_url'] %}
+    <img src="/{{ faction_sum['respect_graph_url'] }}" alt="timeseries graph of faction respect"></a>
+{% else %}
+    No respect graph was found.
+{% endif %}
 </body>
 </html>
