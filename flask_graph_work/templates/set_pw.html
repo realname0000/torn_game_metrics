@@ -1,0 +1,29 @@
+<html>
+<head></head>
+<body>
+
+<a href="/rhubarb/logout">LOGOUT</a>
+<br/>
+<br/>
+<a href="/rhubarb/home">home</a>
+
+<h2>Settings for user {{name}}[{{u}}]</h2>
+
+<h3>Password change</h3>
+<p>
+something about password change, choosing a password, provide old and new.  Get told whether it was accepted.
+<p>
+<form method="POST">
+{{ form.hidden_tag() }}
+<br/>
+{{ form.old_password.label }}
+{{ form.old_password }}
+<br/>
+{{ form.new_password.label }}
+{{ form.new_password }}
+<br/>
+{{ form.submit.label }}
+{{ form.submit }}
+</form>
+</body>
+</html>

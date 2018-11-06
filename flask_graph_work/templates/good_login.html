@@ -8,7 +8,13 @@
 Login ok for {{ u }},  last login at {{ lastt }} with {{ nfail }} failed logins
 </p>
 
+{% if must_change_pw %}
+Your password needs changing.
+<p>
+<a href="/rhubarb/change_pw">continue</a>
+{% else %}
 <a href="/rhubarb/home">continue</a>
+{% endif %}
 
 </body>
 </html>

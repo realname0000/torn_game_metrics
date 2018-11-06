@@ -7,6 +7,7 @@ import oc_cf_web
 import oc_history_to_text
 import os
 import player_graphs
+import faction_graphs
 import sqlite3
 import time
 
@@ -30,11 +31,6 @@ def prepare_player_stats(p_id, pid2name, page_time, show_debug, fnamepre, var_in
     if show_debug:
         print("player data for ", p_id)
         print("use directory ", player_dname)
-
-    # Get hmac details once (outside loops)
-    hmac_key_f = open('/var/torn/hmac_key', 'r')
-    hmac_key = bytes(hmac_key_f.read(),'utf-8')
-    hmac_key_f.close()
 
     longdname = docroot + 'player/' + player_dname
     try:
@@ -315,6 +311,7 @@ def prepare_faction_stats(f_id, fnamepre, var_interval_no, keeping_faction, keep
     print("<p>The first and last colums contain clickable links.<p/>", file=web)
     print("<p/>", file=web)
 
+
     print("<table border='1'>", file=web)
     print("<tr><th>Player</th><th>Crime</th><th>Number</th><th>Recency</th> <th>Most days idle</br>(no crime)</th><th>Stats<br/>(needs API key)</th><th>Age of data</th><th>OC success</th><th>event list</th></tr>", file=web)
 
@@ -433,30 +430,37 @@ def prepare_faction_stats(f_id, fnamepre, var_interval_no, keeping_faction, keep
                 # time parameter to help see whether a page has changed since you last loaded it in the browser
                 print('<div id="oc-type-' + str(crime_type) + '"><li>', crime_type, '<a href="' + retlist[1] +  '?t=' + str(retlist[2]) + '">' +  db_queue[0][0] + '</a></li></div>', file=intro)
     print('</ul>', file=intro)
-    print('<p/><hr>', file=intro)
 
 
-    store_for_analytics = {}
-    c.execute("""select distinct oc_plan_id,crime_name,success,time_executed,participants,money_gain,respect_gain from factionoc where faction_id=? and initiated=?""",(f_id,1,))
-    for row in c:
-        store_for_analytics[row[0]] = row
+    # respect graph
+    print('<p/>', file=intro)
+    graph_action=faction_graphs.Draw_faction_graph(docroot, c, var_interval_no, faction_dname)
+    graph_urls = graph_action.faction(f_id)
+    print("Planning to use respect graph at:", graph_urls)
+    for gu in graph_urls:
+        print('<br/><img src="' + gu + '" alt="timeseries graph">', file=intro)
 
-
+    print('<hr>', file=intro)
     print('<p/><a href="/docs/">Site documentation</a>', file=intro)
     print('<p/><hr>', file=intro)
     print("</body></html>", file=intro)
     intro.close()
     os.rename("/torntmp/index.html", docroot + "intro/" + faction_web +  "/index.html")
 
-
 ###################################################################################################
 
 #START
 
-
 conn = sqlite3.connect('file:/var/torn/readonly_db?mode=ro', uri=True)
 c = conn.cursor()
 conn.commit()
+
+# Get hmac key once (and store in self)
+c.execute("""select hmac_key from admin""")
+for row in c:
+    hmac_string = row[0]
+hmac_string += '\n'
+hmac_key = bytes(hmac_string,'utf-8')
 
 fnamepre = None
 c.execute("""select fnamepre from admin""")

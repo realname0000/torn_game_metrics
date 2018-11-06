@@ -42,6 +42,17 @@ Your faction is {{ faction_sum.name }}[{{ faction_sum.fid }}] with leaders: {{ f
     </table>
 
     <p>
+    <h3>Friendly fire (excluding where attacker lost or escaped)</h3>
+    {% if friendly_fires[0] %}
+    There are {{ friendly_fires[0] }} counts of friendly fire in the last 5 days.
+    This is computed with current data so take acccount of whether anybody changed faction recently.
+	<ol>{% for ff in friendly_fires[1] %}
+	<li>{{ ff[0] }} attacker was {{ ff[1] }} defender was {{ ff[2] }}</li>
+	{% endfor %}</ol>
+    {% else %}
+        No friendly fire in the last 5 days.
+    {% endif %}
+    <p>
     <h3>Faction player table</h3>
     <a href="/rhubarb/faction_player_table">faction player table</a>
     <p>

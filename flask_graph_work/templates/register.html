@@ -2,19 +2,31 @@
 <head></head>
 <body>
 
-<h2>Register - Use this while logged into torn as you will be set a challenge.</h2>
+<h2>Register at tornutopia.com</h2>
+<p>
+Use this while logged into torn as you will be set a challenge to complete in-game to prove it is really you entering your own ID.
+<p>
+{% if retry %}
+For registration to be completed:
+<ul>
+<li>user id must be numeric</li>
+<li>password must be at least 8 characters</li>
+<li>checkbox consent to cookie must be ticked</li>
+</ul>
+{% endif %}
+<p>
 <form method="POST">
 	{{ form.hidden_tag() }}
 
-
 	Numeric Torn ID:
 	{{ form.username() }}
-
 	<br />
-
 	New Tornutopia password:
 	{{ form.password() }}
-
+	<br />
+	consent to a cookie
+	{{ form.checkbox(value='yes') }}
+	<br />
 	<button type="submit" value="register" name="register">Register</button>
 </form>
 </body>

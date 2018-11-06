@@ -9,19 +9,37 @@
 
 <h2>Settings for user {{name}}[{{u}}]</h2>
 
+<h3>Password change</h3>
 <p>
-something about password resets, choosing a password, provide old and new.  Get told whether it was accepted.
+something about password change, choosing a password, provide old and new.  Get told whether it was accepted.
+<br/><a href="/rhubarb/change_pw">change password</a>
+<hr>
 
+<h3>API key</h3>
 <p>
 something about API key (Do they have one?  Is it current?  Want to set/change/delete it?  Use it for faction data retrieval?)
-
 <p>
-Is your OC count correct?  If your API key is not on record and you are new to the faction it might not be.
-<br/>
-Current value is ... do ... to correct it.
+explanation of how it is used and secured ...
+<br/><a href="/rhubarb/set_api_key">words</a>
+<hr>
 
+<h3>Organised crime count</h3>
 <p>
-something about deleting account
+There is an award at 100 OC and your leader may use this count to plan what OC to include you in.
+Is your OC count correct?  If your API key is not on record and you are new to the faction (or your faction is new to tornutopia) it might not be.
+<p>
+If your API key is not known your OC count is increased when OC are seen to be executed but this would not know about your record so far.
+<p>
+Current value is {{ player.oc_calc }}; enter the number using the link below to correct it.
+<br/><a href="/rhubarb/set_oc_calc">words</a>
+<hr>
+
+<h3>Delete account</h3>
+<p>
+something about deleting account - providing password
+<p>
+<br/><a href="/rhubarb/delete_account">words</a>
+<hr>
 
 </body>
 </html>

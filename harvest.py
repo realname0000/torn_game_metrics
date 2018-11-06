@@ -14,7 +14,7 @@ player_crime_timestep = 43200
 faction_basic_timestep = 43200
 level_timestep = 86400
 
-re_named = re.compile('^<a href = "http://www.torn.com/profiles.php.XID=(\d+)">([\w-]+)</a> (\w+) <a href = "http://www.torn.com/profiles.php.XID=(\d+)">([\w-]+)<.a>([\w, +().-]*)$')
+re_named = re.compile('^<a href = "http://www.torn.com/profiles.php.XID=(\d+)">([()\w-]+)</a> (\w+) <a href = "http://www.torn.com/profiles.php.XID=(\d+)">([()\w-]+)<.a>([\w, +().-]*)$')
 re_someone = re.compile('^Someone (\w+) <a href = "http://www.torn.com/profiles.php.XID=(\d+)">([\w-]+)<.a>([\w, +().-]*)$')
 
 
@@ -89,7 +89,8 @@ def get_faction(web, f_id, oc_interval):
         conn.commit()
         if 'OK' == result[0]:
             respect=result[1]['respect']
-            c.execute("""insert into factionrespect values(?,?,?)""", (t,f_id,respect,))
+            api_id_used = result[2]
+            c.execute("""insert into factionrespect values(?,?,?,?)""", (t, api_id_used, f_id,respect,))
             lead=result[1]['leader']
             if lead:
                 c.execute("""update factiondisplay set leader_id=? where f_id=?""", (lead,f_id,))
@@ -176,10 +177,10 @@ def get_faction(web, f_id, oc_interval):
                     cx = oc[crimeplan]
                     # change from a structure into a string
                     part = ','.join(cx["participants"].keys())
-                    c.execute("""insert into factionoc values (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?)""",
+                    c.execute("""insert into factionoc values (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?,?,?)""",
                     (t, player_id_api, f_id, crimeplan,
                      cx["crime_id"], cx["crime_name"], part, cx["time_started"], cx["time_completed"],
-                     cx["initiated"], cx["success"], cx["money_gain"], cx["respect_gain"], 0, cx["time_ready"]))
+                     cx["initiated"], cx["success"], cx["money_gain"], cx["respect_gain"], 0, cx["time_ready"],0,0,))
                     print("Storing new OC ", crimeplan)
             #
             c.execute("""update factionwatch set latest_oc=? where faction_id=?""", (t, f_id,))

@@ -1,0 +1,26 @@
+<html>
+<head></head>
+<body>
+
+<a href="/rhubarb/logout">LOGOUT</a>
+<br/>
+<br/>
+<a href="/rhubarb/home">home</a>
+
+<h2>Settings for user {{name}}[{{u}}]</h2>
+
+
+<h3>API key</h3>
+<p>
+something about API key (Do they have one?  Is it current?  Want to set/change/delete it?  Use it for faction data retrieval?)
+<p>
+explanation of how it is used and secured ...
+<form method="POST">
+{{ form.hidden_tag() }}
+<input type="password" id="new_api_key" name="new API key">
+<button type="submit" value="submit_api" name="submit_api">supply API key</button>
+</form>
+<hr>
+
+</body>
+</html>

@@ -1,0 +1,86 @@
+<html>
+<head>
+<link rel='stylesheet' type='text/css' href='/style.css' />
+</head>
+<body>
+
+<a href="/rhubarb/logout">LOGOUT</a>
+<br/>
+<br/>
+<a href="/rhubarb/home">home</a>
+
+{% if cn %}
+<h3>Completed OC of type {{cn}}</h2>
+{% else %}
+<h3>Completed OC for player {{player_name}}</h2>
+{% endif %}
+<p>
+
+<table border="1">
+<tr><th>When</th><th>Crime type</th><th>Crime title</th>
+{% if cn %}
+    <th>Players</th>
+{% else %}
+<th>{{player_name}} status near crime time<br/>(with nerve if API key is in database)</th>
+{% endif %}
+<th>Outcome</th>
+{% if cn %}
+    <th>Paid?</th>
+{% endif %}
+</tr>
+
+
+
+{% for r in octable %}
+<tr>
+	<td>{{r[0]}}</td>
+	<td>{{r[1]}}</td>
+	<td><div id="oc-type-{{r[1]}}"> {{r[2]}}</div></td>
+        <td>
+{% if cn %}
+	 {% for pid in r[3] %}
+	  {% if make_links %}
+	     <a href="https://www.torn.com/profiles.php?XID={{pid}}#/">{{r[3][pid]}}[{{pid}}]</a>
+	  {% else %}
+	     {{r[3][pid]}}[{{pid}}]
+	  {% endif %}
+	 <br/>
+	 {% endfor %}
+{% else %}
+	 {% for status in r[3] %}
+	 {% for key in status %}
+	 {{key}} = {{status[key]}},
+	 {% endfor %}
+	 <br/>
+	 {% endfor %}
+{% endif %}
+        </td>
+
+        <td>
+	 {% for key in r[4] %}
+	 {{key}} = {{r[4][key]}}<br/>
+	 {% endfor %}
+        </td>
+{% if cn  %}
+        <td>
+        {% if r[5]['paid_at']  %}
+	paid by {{ r[5]['paid_by'] }} on {{r[5]['paid_at']}}
+	{% else %}
+            <form method="POST">
+            {{ form.hidden_tag() }}
+	    <input type="hidden" id="faction_id" name="faction_id" value="{{ r[6] }}">
+	    <input type="hidden" id="oc_plan_id" name="oc_plan_id" value="{{ r[7] }}">
+            <button type="submit" value="pay" name="pay">click when paid</button>
+            </form>
+	{% endif %}
+
+
+        </td>
+{% endif %}
+
+</tr>
+{% endfor %}
+</table>
+
+</body>
+</html>

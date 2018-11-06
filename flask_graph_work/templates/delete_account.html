@@ -1,0 +1,24 @@
+<html>
+<head></head>
+<body>
+
+<a href="/rhubarb/logout">LOGOUT</a>
+<br/>
+<br/>
+<a href="/rhubarb/home">home</a>
+
+<h2>Settings for user {{name}}[{{u}}]</h2>
+
+<h3>Delete account</h3>
+<p>
+something about deleting account - providing password
+<p>
+<form method="POST">
+{{ form.hidden_tag() }}
+<input type="password" id="old_pw" name="old password">
+<button type="submit" value="submit_del" name="submit_delpw">delete tornutopia account</button>
+</form>
+<hr>
+
+</body>
+</html>

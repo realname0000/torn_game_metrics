@@ -5,6 +5,8 @@ import hmac
 import os
 import dehtml
 
+oc_recent_window = 604800
+
 def seconds_text(s):
     if s < 180:
         return str(s) + 's'
@@ -49,6 +51,25 @@ class Rodb:
     def getkey(self):
         return self.hmac_key
 #=================================================================================
+    def get_friendly_fire(self, fid):
+
+        fid = int(fid)
+        start = int(time.time())-432000 # last 5 days till now
+        fire = []
+
+        self.c.execute("""select distinct combat_events.et,combat_events.att_name,combat_events.att_id as ai,combat_events.def_name,combat_events.def_id as di """ +
+        """from combat_events """ +
+        """where ? = (select faction_id from playerwatch where playerwatch.player_id=di) """ +
+        """and   ? = (select faction_id from playerwatch where playerwatch.player_id=ai) """ +
+        """and combat_events.et > ? """ +
+        """and combat_events.outcome not like '%lost%' """ +
+        """and combat_events.outcome not like '%escaped%' """ +
+        """order by combat_events.et desc""", (fid, fid, start,) )
+        for row in self.c:
+            fire.append([time.strftime("%Y-%m-%d %H:%M",time.gmtime(row[0])), row[1]+'['+str(row[2])+']',  row[3]+'['+str(row[4])+']'])
+
+        return [len(fire), fire]
+#=================================================================================
     def get_faction_for_player(self, u):
 
         faction_sum = {'fid':'0', 'name':'?', 'leader':0, 'coleader':0, 'leadername':'?', 'coleadername':'?'}
@@ -73,13 +94,13 @@ class Rodb:
                 faction_sum['leader'] = row[0]
                 faction_sum['coleader'] = row[1]
 
-        self.c.execute("""select name from namelevel where player_id=?""", (faction_sum['leader'],))
-        for row in self.c:
-            faction_sum['leadername'] = row[0]
+            self.c.execute("""select name from namelevel where player_id=?""", (faction_sum['leader'],))
+            for row in self.c:
+                faction_sum['leadername'] = row[0]
 
-        self.c.execute("""select name from namelevel where player_id=?""", (faction_sum['coleader'],))
-        for row in self.c:
-            faction_sum['coleadername'] = row[0]
+            self.c.execute("""select name from namelevel where player_id=?""", (faction_sum['coleader'],))
+            for row in self.c:
+                faction_sum['coleadername'] = row[0]
 
         # what API id has been used recently?
         what_used = {}
@@ -139,18 +160,21 @@ class Rodb:
         oc_name = {}
         oc_et = {}
         oc_timestring = {}
-        # which OC types do we actually have?
+        # Which OC types do we actually have?  This is in all recorded history.
         self.c.execute("""select distinct crime_id from factionoc where faction_id=? order by crime_id desc""", (f_id,))
         for row in self.c:
             crime_schedule.append(row[0])
+        # desc limit 1 gets the most recent OC of that type
         for crime_type in crime_schedule:
-            db_queue = []
             self.c.execute("""select distinct crime_name,et from factionoc where """ +
                            """crime_id =? and faction_id=? and initiated=? order by et desc limit 1""",(crime_type,f_id,1,))
             for row in self.c:
                 oc_name[crime_type] = row[0]
                 oc_et[crime_type] = row[1]
-                oc_timestring[crime_type] = time.strftime("%Y-%m-%d %H:%M", time.gmtime(row[1]))
+                if (oc_et[crime_type] + (oc_recent_window) ) < right_now :
+                    oc_timestring[crime_type] = "none"
+                else:
+                    oc_timestring[crime_type] = time.strftime("%Y-%m-%d %H:%M", time.gmtime(row[1]))
         #
         for crime_type in crime_schedule:
             flask_parm = ( str(f_id) + '-' + str(crime_type) + '-' +  str(right_now) +  '-history' ).encode("utf-8")
@@ -165,7 +189,7 @@ class Rodb:
 
 #=================================================================================
 
-    def get_oc(self, t_id, cn, longsearch):
+    def get_oc(self, t_id, cn, longsearch, cached_payments):
         """return an octable structure of past OC and possibly an item of future OC"""
 
         octable = []
@@ -173,10 +197,10 @@ class Rodb:
         #  if cn is 0 it means t_id is a p_id, else t_id is a f_id
         if int(cn):
             # for faction
-            time_limit = int(time.time() - 604800) # recent past
+            time_limit = int(time.time() - oc_recent_window) # recent past
             if longsearch:
                 time_limit = 0 # use whole time range
-            self.c.execute("""select distinct factionoc.crime_name,factionoc.success,factionoc.time_completed,factionoc.time_executed,factionoc.participants,factionoc.money_gain,factionoc.respect_gain,factionoc.time_ready from factionoc where     factionoc.crime_id=? and factionoc.faction_id=? and factionoc.initiated=? and factionoc.time_completed>? order by time_ready desc""",(cn,t_id,1,time_limit,))
+            self.c.execute("""select distinct factionoc.crime_name,factionoc.success,factionoc.time_completed,factionoc.time_executed,factionoc.participants,factionoc.money_gain,factionoc.respect_gain,factionoc.time_ready,factionoc.paid_at,factionoc.paid_by,factionoc.oc_plan_id   from factionoc where  factionoc.crime_id=? and factionoc.faction_id=? and factionoc.initiated=? and factionoc.time_completed>? order by time_ready desc""",(cn,t_id,1,time_limit,))
             for row in self.c:
                 outcome = {}
                 if row[1]:
@@ -185,9 +209,22 @@ class Rodb:
                 else:
                     outcome['result'] = 'FAIL'
                 outcome['delay'] = str(int((row[2] - row[7])/60)) + " mins" # time_completed - time_ready, converted to minutes
-                this_crime = [ time.strftime("%Y-%m-%d", time.gmtime(row[7])), cn, row[0], row[4], outcome ]
+                this_crime = [ time.strftime("%Y-%m-%d", time.gmtime(row[7])), cn, row[0], row[4], outcome, {'paid_at':row[8], 'paid_by':row[9]}, t_id, row[10] ]
                 crimes_to_show.append(this_crime)
+            # fix up those answers with more details ouside that cursor loop
             for this_crime in crimes_to_show:
+                # OC payment - passed here from ORM cache
+                for cache_key in cached_payments.keys():
+                    if (this_crime[7] == cache_key) and not this_crime[5]['paid_at']:
+                        this_crime[5] = cached_payments[cache_key]
+                # fix up text of OC payment - or 0 means no payment has been made
+                if this_crime[5]['paid_at']:
+                    this_crime[5]['paid_at'] = time.strftime("%Y-%m-%d", time.gmtime(this_crime[5]['paid_at']))
+                if this_crime[5]['paid_by']:
+                    self.c.execute("""select name from namelevel where player_id=?""",(this_crime[5]['paid_by'],))
+                    for row in self.c:
+                        this_crime[5]['paid_by'] = row[0]
+                # and names of participants
                 participants = this_crime[3]
                 new_participants = {}
                 for pid in participants.split(','):
@@ -342,11 +379,11 @@ class Rodb:
         self.c.execute("""select et from namelevel where player_id = ?""", (p_id,))
         for row in self.c:
             level_time = page_time - row[0]
+            age_of_data['level'] = seconds_text(level_time)
         self.c.execute("""select latest from playerwatch where player_id=?""", (p_id,))
         for row in self.c:
             crime_time = page_time - row[0]
-        age_of_data['level'] = seconds_text(level_time)
-        age_of_data['crimes'] = seconds_text(crime_time)
+            age_of_data['crimes'] = seconds_text(crime_time)
 
         # OC success
         oc_calc = 0

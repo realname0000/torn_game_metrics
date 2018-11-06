@@ -12,6 +12,16 @@
 <h3>Faction info</h3>
 <p>
 Your faction is {{ faction_sum.name }} [{{ faction_sum.fid }}] with leaders: {{ faction_sum.leadername}}[{{ faction_sum.leader}}] and {{ faction_sum.coleadername}}[{{ faction_sum.coleader}}].
+{% if faction_sum.fid == "0" %}
+<p>
+<strong>
+Either you are not a member of a faction or data on your faction is not collected.
+To solve this either you or (with the agreement of faction leaders) someone in yor faction with faction API access should provide their API key to the tornutopia database.
+That database is not readable by this web service and sensitive things like money and battle stats are never looked up.
+settings (above) is where you can do this.
+</strong>
+</p>
+{% endif%}
 </p>
 {% if is_leader %}
 You are recognised as a leader and get a <a href="/rhubarb/faction_ov">faction overview</a>.

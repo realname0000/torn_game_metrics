@@ -65,10 +65,10 @@ def populate_faction(c, f_id):
             continue
         c.execute("""insert into playerwatch values(?,?,?,?,?)""", (oet, oet, 1, f_id, p_id,))
         c.execute("""insert into namelevel values(?,?,?,?)""", (oet, word, new_player, p_id,))
-        # empty crime hstory
-        c.execute("""insert into playercrimes values(?,?,?,?, ?,?,?,?, ?,?,?,?)""", (oet, 0, p_id,  0, 0, 0, 0, 0, 0, 0, 1, 1,))
-        c.execute("""insert into pstats values(?,?,?,?, ?,?,?,?,?)""", (oet, 0, p_id, 0, 0, 0, 0, 0, 0,))
-        conn.commit()
+        # empty crime history
+        fake_api_id = -9970
+        c.execute("""insert into playercrimes values(?,?,?,?, ?,?,?,?, ?,?,?,?)""", (oet, fake_api_id, p_id,  0, 0, 0, 0, 0, 0, 0, 1, 1,))
+        c.execute("""insert into pstats values(?,?,?,?, ?,?,?,?,?)""", (oet, fake_api_id, p_id, 0, 0, 0, 0, 0, 0,))
 
 
 def player_stats(c, players):
@@ -137,9 +137,6 @@ def player_stats(c, players):
         defend = [ -99, 0, now, att_name, att_id, 'hospitalised', p_name, p_id, '(-'+str(loss)+')']
         c.execute("""insert into combat_events values(?, ?,?,?,?, ?,?,?,?)""", tuple(defend))
 
-    conn.commit()
-
-
 def playercrime(c, players):
     for p_id in players:
         c.execute("""select et,api_id,player_id,selling_illegal_products,theft,auto_theft,drug_deals,computer_crimes,murder,fraud_crimes,other,total from playercrimes where player_id=? and et=(select max(et) from playercrimes where player_id=?)""", (p_id, p_id,))
@@ -173,12 +170,12 @@ def playercrime(c, players):
         c.execute("""update playerwatch set latest=? where player_id=?""", (et, p_id,))
         #
         c.execute("""update namelevel set et=? where player_id=?""", (et, p_id,))
-    conn.commit()
     return et
 
 def reap_oc(c, f_id):
     now = int(time.time())
     analytics = oc_analytics.Compare(c, f_id)
+    total_respect_gain = 0
     c.execute("""select distinct oc_plan_id,crime_id,crime_name,participants,time_ready from factionoc where faction_id=? and initiated=?""",(f_id,0,))
     plans = []
     oc_plan_already = {}
@@ -199,18 +196,23 @@ def reap_oc(c, f_id):
             if crime_id == 8: # PA
                 money = 100000 + int (random.random() * 200000)
                 respect = 50 + int (random.random() * 250)
+                total_respect_gain += respect
             elif crime_id  == 4: # PR
                 money = 50000 + int (random.random() * 150000)
                 respect = 10 + int (random.random() * 70)
+                total_respect_gain += respect
             elif crime_id  < 4:
                 money = 100 + int (random.random() * 5000)
                 respect = 5 + int (random.random() * 50)
+                total_respect_gain += respect
             else:
                 money = 50000 + int (random.random() * 100000)
                 respect = 20 + int (random.random() * 150)
+                total_respect_gain += respect
             c.execute("""update factionoc set success=? where faction_id=? and oc_plan_id=?""", (1, f_id, crimeplan,))
             c.execute("""update factionoc set money_gain=? where faction_id=? and oc_plan_id=?""", (money, f_id, crimeplan,))
             c.execute("""update factionoc set respect_gain=? where faction_id=? and oc_plan_id=?""", (respect, f_id, crimeplan,))
+
         participants = oc_plan_already[crimeplan][3]
         players = participants.split(',')
         analytics.ingest(f_id, crimeplan, crime_id, players)
@@ -218,7 +220,14 @@ def reap_oc(c, f_id):
         c.execute("""update factionwatch set latest_basic=? where faction_id=?""", (et, f_id,))
         c.execute("""update factionwatch set latest_oc=? where faction_id=?""", (et, f_id,))
     analytics.examine()
-    conn.commit()
+    # update faction respect as a result of these OC
+    c.execute("""select api_id,respect from factionrespect where f_id=? order by et desc limit 1""", (f_id,))
+    for row in c:
+        a = row[0]
+        r_now = row[1]
+    r_now += total_respect_gain
+    c.execute("""insert into factionrespect values(?,?,?,?)""", (now, a, f_id, r_now,))
+    print('increase of {} respect (to {}) for faction {}'.format(total_respect_gain, r_now, f_id))
 
 def sow_oc(c, f_id, players):
     c.execute ("""select max(oc_plan_id) from factionoc where faction_id=?""",(f_id,))
@@ -271,8 +280,9 @@ def sow_oc(c, f_id, players):
             comma = ','
             c.execute("""insert into whodunnit values(?,?,?,?)""", (et, p, f_id, max_plan_already,))
         print("For OC ", max_plan_already, " of type ",  crime_id, " using ", participants, "at time ",  time.strftime("%Y-%m-%d", time.gmtime(et)))
-        c.execute("""insert into factionoc values(?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?)""",
-                     (et, 4, f_id, max_plan_already, crime_id, crime_name, participants, et, 0, 0,0,0,0,0, et+604800))
+        fake_api_id = -9950
+        c.execute("""insert into factionoc values(?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?,?,?)""",
+                     (et, fake_api_id, f_id, max_plan_already, crime_id, crime_name, participants, et, 0, 0,0,0,0,0, et+604800, 0,0,))
 
 
 conn = sqlite3.connect('/var/torn/torn_db')
@@ -291,9 +301,12 @@ for f_id in [-99]:
         populate_faction(c, f_id)
         continue
     playercrime(c, players)
+    conn.commit()
     player_stats(c, players)
+    conn.commit()
     reap_oc(c, f_id)
+    conn.commit()
     sow_oc(c, f_id, players)
+    conn.commit()
 
-conn.commit()
 c.close()
