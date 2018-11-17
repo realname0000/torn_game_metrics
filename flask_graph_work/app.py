@@ -1,3 +1,5 @@
+import logging
+import logging.handlers
 from flask import Flask, render_template, redirect, request
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
@@ -13,6 +15,7 @@ import sqlite3
 import time
 import read_sqlite
 import dehtml
+import random
 
 re.numeric = re.compile('^[0-9]+$')
 token = re.compile('^([-\d]+)([a-z]+)(\d+)-([0-9a-f]+)$')
@@ -30,12 +33,16 @@ app = Flask(__name__)
 
 app.config.from_pyfile('config.py')
 
+loghandler = logging.handlers.RotatingFileHandler('/home/peabrain/logs/tu.log', maxBytes=1024 * 1024, backupCount=10)
+loghandler.setLevel(logging.INFO)
+app.logger.setLevel(logging.INFO)
+app.logger.addHandler(loghandler)
 
 db = SQLAlchemy(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 
-class User(UserMixin, db.Model):
+class LUser(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(30), unique=True)   # torn numeric id
     login_allowed = db.Column(db.Integer)              # int used as bool
@@ -56,13 +63,16 @@ class Payment_cache(db.Model):
     timestamp = db.Column(db.Integer)
     paid_by = db.Column(db.Integer)
 
-
-#
+class Report_number_oc(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    timestamp = db.Column(db.Integer)
+    pid = db.Column(db.Integer)
+    number_oc = db.Column(db.Integer)
 
 
 @login_manager.user_loader
 def load_user(user_id):
-    return User.query.get(int(user_id)) # returns whole object
+    return LUser.query.get(int(user_id)) # returns whole object
 
 # this logs someone out
 @app.route('/logout')
@@ -83,12 +93,12 @@ def login():
             reject = True # assume rejection
             allowed_login = False
         except:
-            print('something failed about reading U and P')
+            app.logger.info('error reading from login form')
             return render_template('login.html', title='Sign In', form=form)
 
         # compute each step for constant time operation
         pwhash_given = hashlib.sha1(bytes(p, 'utf-8')).hexdigest()
-        wantuser = User.query.filter_by(username = u).first()
+        wantuser = LUser.query.filter_by(username = u).first()
         if not wantuser:
             # unknown username
             if not re.numeric.match(u):
@@ -113,6 +123,9 @@ def login():
                 lastt = datetime.datetime.fromtimestamp(lastt)
             else:
                 lastt = 'never'
+            app.logger.info('%s logged in successfully', u)
+            for rh in request.headers:
+                app.logger.info('%s had request header %s', u, rh)
             return render_template('good_login.html', title='successful login', u=u, nfail=nfail, lastt=lastt, must_change_pw=wantuser.must_change_pw)
 
         wantuser.failed_logins += 1
@@ -146,7 +159,7 @@ def register():
         if not re.numeric.match(u):
             return render_template('accounts_explained.html', title='Accounts Explained')
         # does user already exist?
-        wantuser = User.query.filter_by(username = u).first()
+        wantuser = LUser.query.filter_by(username = u).first()
         if wantuser:
             return render_template('message.html', message='That username is already in use.  If already registered and confirmed use login.  Or wait for a past registration attempt to expire and retry.', logged_in=False)
         # is pw acceptable?
@@ -154,7 +167,7 @@ def register():
         # is cookie consent on?
         if c != 'yes':
             return render_template('message.html', title='Message', message='Consent to a cookie (for a logged-in session) is required.', logged_in = False)
-        #  newu = User (id=1, username=str(u), login_allowed=0, must_change_pw=0, pwsalt='abc',pwhash='qwert', registered=et, confirmed=0, last_login=0, failed_logins=0)
+        #  newu = LUser (id=1, username=str(u), login_allowed=0, must_change_pw=0, pwsalt='abc',pwhash='qwert', registered=et, confirmed=0, last_login=0, failed_logins=0)
         #  db.session.add(newu)
         #  db.session.commit()
         # set challenge to be done before confirmed gets a value
@@ -189,8 +202,13 @@ def settings():
     # XXX check whether API key has worked recently for both player and faction
     # XXX
 
-    return render_template('settings.html', title='Tornutopia Settings', u=u, name=name, player=player)
+    oc_calc_sr = 0
+    want_oc = Report_number_oc.query.filter_by(pid = u).all()
+    for i in want_oc:
+        if player['oc_calc'] != i.number_oc:
+            oc_calc_sr = i.number_oc # self-reported number
 
+    return render_template('settings.html', title='Tornutopia Settings', u=u, name=name, player=player, oc_calc_sr=oc_calc_sr)
 #=================================================================================
 
 @app.route("/change_pw", methods=['GET','POST'])
@@ -211,10 +229,10 @@ def change_pw():
               old_pw = request.form['old_password']
               new_pw = request.form['new_password']
           except:
-              print('something failed about reading from password form')
+              app.logger.info('error reading from change_pw form')
               return redirect('/rhubarb/change_pw')
       else:
-          print("form FAILS validation")
+          app.logger.info('change_pw form fails validation')
           return redirect('/rhubarb/faction_ov')
 
       # XXX is old pw correct?
@@ -238,28 +256,24 @@ def set_oc_calc():
     rodb = read_sqlite.Rodb()
     player = rodb.get_player_data(current_user.username)
     name = player['name']
+    number_oc = 0
 
-    # - - - - - - -  POST section
     if request.method == 'POST':
-      # form = PaymentForm()
-      # if form.validate_on_submit():
-      #     try:
-      #         form_faction = request.form['faction_id']
-      #         ocp = request.form['oc_plan_id']
-      #     except:
-      #         print('something failed about reading from paymentform')
-      #         return redirect('/rhubarb/faction_ov/')
-      # else:
-      #     print("form FAILS validation")
-      #     return redirect('/rhubarb/faction_ov/')
-      # # write to ORM payment for (form_faction,ocp) by current user at now
-      # pay = Payment_cache(faction_id=int(tid), oc_plan_id=int(ocp), timestamp=int(time.time()), paid_by=int(cu))
-      # db.session.add(pay)
-      # db.session.commit()
-      # # redirect after POST
-      # return redirect('/rhubarb/faction_oc_history/' + tid_cn_t) 
-      return "some kind of form POST for settings - TBC"
-    # - - - - - - -  POST section
+      form = OccalcForm()
+      if form.validate_on_submit():
+          try:
+              number_oc = request.form['number_oc']
+          except:
+              return render_template('message.html', message='Something failed about reading from occalcform.', logged_in=True)
+      else:
+          app.logger.info('set_oc_calc form fails validation')
+          return render_template('message.html', message='Form fails validation.', logged_in=True)
+      if int(number_oc) > 0:
+          new_id=int(random.random() * 1000000000)
+          report_number_oc = Report_number_oc(id=new_id, timestamp=int(time.time()), pid=int(u), number_oc=number_oc)
+          db.session.add(report_number_oc)
+          db.session.commit()
+      return redirect('/rhubarb/settings')
 
     form = OccalcForm()
     return render_template('set_oc_calc.html', title='Tornutopia Settings', u=u, name=name, player=player, form=form)
@@ -324,14 +338,13 @@ def delete_account():
       #         print('something failed about reading from paymentform')
       #         return redirect('/rhubarb/faction_ov/')
       # else:
-      #     print("form FAILS validation")
+      #     app.logger.info('delete_account form fails validation')
       #     return redirect('/rhubarb/faction_ov/')
-      # # write to ORM payment for (form_faction,ocp) by current user at now
-      # pay = Payment_cache(faction_id=int(tid), oc_plan_id=int(ocp), timestamp=int(time.time()), paid_by=int(cu))
-      # db.session.add(pay)
+      # check password
+      # # write to ORM
+      # db.session.delete(X) ?
       # db.session.commit()
-      # # redirect after POST
-      # return redirect('/rhubarb/faction_oc_history/' + tid_cn_t) 
+      # return redirect('/rhubarb/logout/') 
       return "some kind of form POST for settings - TBC"
     # - - - - - - -  POST section
 
@@ -353,6 +366,21 @@ def faction_ov():
     return render_template('faction_ov.html', title='Faction Overview', u=current_user.username, player=player, faction_sum=faction_sum, is_leader=is_leader, friendly_fires=friendly_fires)
 
 #=================================================================================
+@app.route('/pay_policy')
+@login_required
+def pay_policy():
+    rodb = read_sqlite.Rodb()
+    faction_sum = rodb.get_faction_for_player(current_user.username)
+    read_policy = rodb.get_oc_payment_policy(faction_sum['fid'])
+    policy = {} # mutable to produce human-readable times
+    for k in sorted(read_policy.keys()):
+        et = read_policy[k][0]
+        policy[k] = list(read_policy[k])
+        policy[k][0] = time.strftime("%Y-%m-%d %H:%M",time.gmtime(et))
+
+    pending = 0 # XXX check the orm for a cached alteration to these figures
+    return render_template('pay_policy.html', title='Pay Policy', u=current_user.username, policy=policy, pending=pending)
+#=================================================================================
 
 @app.route('/faction_player_table')
 @login_required
@@ -363,6 +391,8 @@ def faction_player_table():
     faction_sum = rodb.get_faction_for_player(current_user.username)
     player = rodb.get_player_data(current_user.username)
     is_leader = True if ((int(current_user.username) == faction_sum['leader']) or (int(current_user.username) == faction_sum['coleader'] ) ) else False
+    if not is_leader:
+        return render_template('message.html', title='Faction Player Table Denied', u=current_user.username, player=player, message='Get out before they see you here.')
     pt = rodb.get_player_table(faction_sum) # take advantage of having looked this up already
     return render_template('faction_player_table.html', title='Faction Player Table', u=current_user.username, player=player, faction_sum=faction_sum, is_leader=is_leader, pt=pt)
 
@@ -399,7 +429,7 @@ def jsgraph(what_graph):
         timestamp = re_object.group(3)
         given_hmac =  re_object.group(4)
     else:
-        print("RE did not match URL")
+        app.logger.info('in jsgraph RE did not match URL')
         return render_template("bad_graph_request.html")
 
     # calc correct hmac
@@ -413,11 +443,11 @@ def jsgraph(what_graph):
 
     # test for correct hmac
     if not hmac.compare_digest(hmac_hex, given_hmac):
-        print("HMAC disagreement")
+        app.logger.info('in jsgraph HMAC disagreement')
         return render_template("bad_graph_request.html")
     # test for acceptable timestamp
     if ((int(timestamp) + 86400) < right_now):
-        print("timestamp is old:", timestamp)
+        app.logger.info('in jsgraph timestamp is old')
         return render_template("bad_graph_request.html")
 
     conn = sqlite3.connect('file:/var/torn/readonly_db?mode=ro', uri=True)
@@ -433,7 +463,6 @@ def jsgraph(what_graph):
     conn.close()
 
     # Does df contain reasonable data? TODO
-    print("LEN DF", len(df))
 
     # convert et to date-as-string so it can be parsed in JS
     df['et'] = pd.to_datetime(df['et'],unit='s').astype(str)
@@ -457,6 +486,7 @@ def faction_oc_history(tid_cn_t):
     if current_user.must_change_pw:
         return redirect('/rhubarb/change_pw')
     # fid, cn, history-or-et
+    percent_to_pay = 0
     cu =  current_user.username
     logged_in = True
     tid = None
@@ -474,6 +504,8 @@ def faction_oc_history(tid_cn_t):
     else:
         return render_template('message.html', message='failed to discover the history intended by this click', logged_in=logged_in)
 
+    rodb = read_sqlite.Rodb()
+
     # check time and hmac
     right_now = int(time.time())
     if ((int(timestamp) + 86400) < right_now):
@@ -485,6 +517,10 @@ def faction_oc_history(tid_cn_t):
         flask_parm = (str(tid) + '-' + str(cn) + '-' + str(timestamp) + '-history' ).encode("utf-8")
     else:
         flask_parm = (str(tid) + '-' + str(cn) + '-' + str(timestamp)).encode("utf-8")
+        # read the payment policy of this faction (e.g. pay 20% of PA winnings to each player)
+        oc_percentages = rodb.get_oc_payment_policy(tid)
+        if int(cn) in oc_percentages:
+            percent_to_pay = oc_percentages[int(cn)][2]
     hmac_hex_hist = hmac.new(hmac_key, flask_parm, digestmod=hashlib.sha1).hexdigest()
     if not hmac_hex_hist == hmac_given:
         return render_template('message.html', message='link has been altered; cannot use it', logged_in=logged_in)
@@ -497,13 +533,14 @@ def faction_oc_history(tid_cn_t):
                 form_faction = request.form['faction_id']
                 ocp = request.form['oc_plan_id']
             except:
-                print('something failed about reading from paymentform')
+                app.logger.info('error involving paymentform')
                 return redirect('/rhubarb/faction_ov')
         else:
-            print("form FAILS validation")
+            app.logger.info('paymentform fails validation')
             return redirect('/rhubarb/faction_ov')
         # write to ORM payment for (form_faction,ocp) by current user at now
-        pay = Payment_cache(faction_id=int(tid), oc_plan_id=int(ocp), timestamp=int(time.time()), paid_by=int(cu))
+        new_pay_id=int(random.random() * 1000000000)
+        pay = Payment_cache(id=new_pay_id, faction_id=int(tid), oc_plan_id=int(ocp), timestamp=int(time.time()), paid_by=int(cu))
         db.session.add(pay)
         db.session.commit()
         # redirect after POST
@@ -511,7 +548,6 @@ def faction_oc_history(tid_cn_t):
     # - - - - - - -  POST section
 
     player = {'name':'no name'}
-    rodb = read_sqlite.Rodb()
     if int(cn):
         try:
             faction_sum = rodb.get_faction_for_player(current_user.username)
@@ -526,6 +562,7 @@ def faction_oc_history(tid_cn_t):
         # no need to authenticate the user but we do want the name
         player = rodb.get_player_data(tid)
 
+
     # This is the file with Payment_cache defined.  Read ORM here and pass details to rodb.get_oc()
     payment_query = db.session.query(Payment_cache).filter(Payment_cache.faction_id == tid)
     want_payment = payment_query.all()
@@ -537,11 +574,11 @@ def faction_oc_history(tid_cn_t):
         octable, future = rodb.get_oc(tid, cn, long_search, cached_payments) # "tid" might be fid or pid
     except:
         # example data
-        octable = [[ 'Today', 8, 'failed to fetch octable', {'4':'Duke', '317178':'Flex'} , {'money':100, 'respect':5, 'delay':1800},  {'paid_by':0,  'paid_at':0}  ],
-                [ 'Yesterday', 8, 'failed to fetch octable', {'1455847':'Para'} , {'result':'FAIL', 'delay':60}, {'paid_by':0,  'paid_at':0} ]]
+        octable = [[ 'Today', 8, 'failed to fetch octable', {'4':'Duke', '317178':'Flex'} , {'money':100, 'respect':5, 'delay':1800},  {'paid_by':0,  'paid_at':0}, 1234  ],
+                [ 'Yesterday', 8, 'failed to fetch octable', {'1455847':'Para'} , {'result':'FAIL', 'delay':60}, {'paid_by':0,  'paid_at':0}, 2345 ]]
 
     form = PaymentForm() # only used for faction display, not player display
-    return render_template("completed_oc.html", form=form, cn=int(cn), player_name=player['name'], cu=cu, octable=octable, make_links=True if int(tid) >0 else False)
+    return render_template("completed_oc.html", form=form, cn=int(cn), player_name=player['name'], cu=cu, octable=octable, make_links=True if int(tid) >0 else False, percent_to_pay=percent_to_pay)
 
 #=================================================================================
 
@@ -570,7 +607,7 @@ def combat_events(player_role_t):
         timestamp = re_object.group(3)
         given_hmac =  re_object.group(4)
     else:
-        print("RE did not match URL")
+        app.logger.info('in combat_events RE did not match URL')
         return render_template("bad_graph_request.html")
 
     # calc correct hmac

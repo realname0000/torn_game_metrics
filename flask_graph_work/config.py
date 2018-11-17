@@ -1,7 +1,5 @@
-SOMETHING = 'some value'
-UPPERCASE = 'what variables are written in'
-
-SQLALCHEMY_DATABASE_URI = 'sqlite:////home/peabrain/experimental/login.db'
+SQLALCHEMY_DATABASE_URI = "postgres://pyflask:PPPPPP@127.0.0.1:5432/torndb_dev"
+# SQLALCHEMY_DATABASE_URI = 'sqlite:////home/peabrain/experimental/login.db'
 SQLALCHEMY_TRACK_MODIFICATIONS = False
 
 SECRET_KEY = 'anti-csrf-fyufo8aoaohlalihoaiYOiilnt'

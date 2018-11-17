@@ -47,9 +47,23 @@ class Rodb:
 
         self.docroot = '/srv/www/vhosts/tornutopia.com/'
 
+        # takes about 0.01s
+        self.pid2n = {}
+        self.c.execute("""select player_id,name from namelevel""")
+        for row in self.c:
+            self.pid2n[str(row[0])] = row[1] + '[' + str(row[0]) + ']'
+
 #=================================================================================
     def getkey(self):
         return self.hmac_key
+#=================================================================================
+    def pid2namepid(self,p_id):
+        p_id = str(p_id)
+        if p_id == '0':
+            return 'Someone[0]'
+        if p_id in self.pid2n:
+            return self.pid2n[p_id]
+        return '?[' + p_id + ']'
 #=================================================================================
     def get_friendly_fire(self, fid):
 
@@ -94,6 +108,8 @@ class Rodb:
                 faction_sum['leader'] = row[0]
                 faction_sum['coleader'] = row[1]
 
+            faction_sum['leader'] = 1338804 # XXX XXX XXX do not allow this into prod
+
             self.c.execute("""select name from namelevel where player_id=?""", (faction_sum['leader'],))
             for row in self.c:
                 faction_sum['leadername'] = row[0]
@@ -110,7 +126,8 @@ class Rodb:
         self.c.execute("""select et,api_id from factionrespect where f_id=? and et > ?""", (f_id,yesterday,))
         for row in self.c:
             what_used[row[1]] = time.strftime("%Y-%m-%d %H:%M", time.gmtime(row[0]))
-        faction_sum['api_ids_used_by_faction'] = what_used
+        faction_sum['api_ids_used_by_faction'] =  {self.pid2namepid(x):what_used[x] for x in what_used.keys()}
+
 
         # directory for faction_dname may exist ... or not
         var_interval_no = int (right_now/self.file_lifetime)
@@ -133,8 +150,6 @@ class Rodb:
 
         # API ids, multiple values expected
         id_used = {}
-        ##### self.c.execute("""select playercrimes.et,playercrimes.api_id from playercrimes join playerwatch on playercrimes.player_id = playerwatch.player_id  and playerwatch.faction_id = ? and playercrimes.et > ?""",
-        # trying this alternative
         self.c.execute("""select pstats.et,pstats.api_id from pstats join playerwatch on pstats.player_id = playerwatch.player_id  and playerwatch.faction_id = ? and pstats.et > ?""",
             (faction_sum['fid'],yesterday,))
         for row in self.c:
@@ -147,11 +162,8 @@ class Rodb:
                 id_used[api_id] = et
         good_id = {}
         for api_id in id_used:
-            name = '?'
-            self.c.execute("""select name from namelevel where player_id=?""", (api_id,))
-            for row in self.c:
-                name = row[0]
-            good_id[ name + '[' + str(api_id) + ']' ] = time.strftime("%Y-%m-%d %H:%M", time.gmtime(id_used[api_id]))
+            name = self.pid2namepid(str(api_id))
+            good_id[ name ] = time.strftime("%Y-%m-%d %H:%M", time.gmtime(id_used[api_id]))
         faction_sum['api_id_list'] = good_id
 
         # OC results
@@ -189,6 +201,14 @@ class Rodb:
 
 #=================================================================================
 
+    def get_oc_payment_policy(self,f_id):
+        policy_dict = {}
+        self.c.execute("""select et,crime_id,percent,set_by from payment_percent where faction_id=? order by et""",(f_id,))
+        for row in self.c:
+            policy_dict[int(row[1])] = row
+        return policy_dict
+
+#=================================================================================
     def get_oc(self, t_id, cn, longsearch, cached_payments):
         """return an octable structure of past OC and possibly an item of future OC"""
 
@@ -197,19 +217,27 @@ class Rodb:
         #  if cn is 0 it means t_id is a p_id, else t_id is a f_id
         if int(cn):
             # for faction
+            # What is this faction policy on paying for OC?
+            policy = self.get_oc_payment_policy(int(t_id))
+            percent = 0
+            if int(cn) in policy:
+                percent = policy[int(cn)][2]
+            #
             time_limit = int(time.time() - oc_recent_window) # recent past
             if longsearch:
                 time_limit = 0 # use whole time range
             self.c.execute("""select distinct factionoc.crime_name,factionoc.success,factionoc.time_completed,factionoc.time_executed,factionoc.participants,factionoc.money_gain,factionoc.respect_gain,factionoc.time_ready,factionoc.paid_at,factionoc.paid_by,factionoc.oc_plan_id   from factionoc where  factionoc.crime_id=? and factionoc.faction_id=? and factionoc.initiated=? and factionoc.time_completed>? order by time_ready desc""",(cn,t_id,1,time_limit,))
             for row in self.c:
                 outcome = {}
+                cash_per_player = 0
                 if row[1]:
                     outcome['money'] = row[5]
                     outcome['respect'] = row[6]
+                    cash_per_player = int(row[5] * percent / 100)
                 else:
                     outcome['result'] = 'FAIL'
                 outcome['delay'] = str(int((row[2] - row[7])/60)) + " mins" # time_completed - time_ready, converted to minutes
-                this_crime = [ time.strftime("%Y-%m-%d", time.gmtime(row[7])), cn, row[0], row[4], outcome, {'paid_at':row[8], 'paid_by':row[9]}, t_id, row[10] ]
+                this_crime = [ time.strftime("%Y-%m-%d", time.gmtime(row[7])), cn, row[0], row[4], outcome, {'paid_at':row[8], 'paid_by':row[9]}, t_id, row[10], cash_per_player ]
                 crimes_to_show.append(this_crime)
             # fix up those answers with more details ouside that cursor loop
             for this_crime in crimes_to_show:
@@ -221,9 +249,7 @@ class Rodb:
                 if this_crime[5]['paid_at']:
                     this_crime[5]['paid_at'] = time.strftime("%Y-%m-%d", time.gmtime(this_crime[5]['paid_at']))
                 if this_crime[5]['paid_by']:
-                    self.c.execute("""select name from namelevel where player_id=?""",(this_crime[5]['paid_by'],))
-                    for row in self.c:
-                        this_crime[5]['paid_by'] = row[0]
+                    this_crime[5]['paid_by'] = self.pid2namepid(this_crime[5]['paid_by'])
                 # and names of participants
                 participants = this_crime[3]
                 new_participants = {}
@@ -275,7 +301,7 @@ class Rodb:
                 readiness_record.append(player_status_then)
             octable[-1][3] = readiness_record
 
-        return octable, None
+        return octable, None  # The None is for expansion of displaying OC still in planning
 
 #=================================================================================
 
@@ -498,4 +524,4 @@ class Rodb:
 #=================================================================================
 
 if __name__ == '__main__':
-    print('running this file')
+    pass # do not run this file
