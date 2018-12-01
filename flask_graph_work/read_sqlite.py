@@ -18,7 +18,6 @@ def seconds_text(s):
 class Rodb:
 
 #=================================================================================
-
     def __init__(self):
         self.conn = sqlite3.connect('file:/var/torn/readonly_db?mode=ro', uri=True)
         self.c = self.conn.cursor()
@@ -56,6 +55,19 @@ class Rodb:
 #=================================================================================
     def getkey(self):
         return self.hmac_key
+#=================================================================================
+    def has_api_key(self,u):
+        et_pstats = 0
+        self.c.execute("""select max(et) from pstats where player_id = ?""", (u,))
+        for row in self.c:
+            et_pstats = row[0]
+
+        et_set, short_err, long_err = (0,0,0)
+        self.c.execute("""select et,short_err,long_err from apikeys where player_id = ?""", (u,))
+        for row in self.c:
+            et_set, short_err, long_err = row
+
+        return  et_pstats, et_set, short_err, long_err
 #=================================================================================
     def pid2namepid(self,p_id):
         p_id = str(p_id)
@@ -102,13 +114,11 @@ class Rodb:
             self.c.execute("""select f_name from factiondisplay where f_id=?""", (f_id,))
             for row in self.c:
                 faction_sum['name'] = row[0]
-            # leader and coleader from fid
+            # leader and coleader from fid THIS IS TORN API DATA.
             self.c.execute("""select leader_id,coleader_id from factiondisplay where f_id=?""", (f_id,))
             for row in self.c:
                 faction_sum['leader'] = row[0]
                 faction_sum['coleader'] = row[1]
-
-            faction_sum['leader'] = 1338804 # XXX XXX XXX do not allow this into prod
 
             self.c.execute("""select name from namelevel where player_id=?""", (faction_sum['leader'],))
             for row in self.c:
@@ -117,6 +127,15 @@ class Rodb:
             self.c.execute("""select name from namelevel where player_id=?""", (faction_sum['coleader'],))
             for row in self.c:
                 faction_sum['coleadername'] = row[0]
+
+        # Extra leaders are in postgres and not in sqlite at all.
+
+        # members - within the last day
+        member_pids = []
+        self.c.execute("""select player_id from playerwatch where faction_id=? and latest>?""", (f_id, int(time.time())-86400,))
+        for row in self.c:
+            member_pids.append(str(row[0]))
+        faction_sum['members'] = member_pids
 
         # what API id has been used recently?
         what_used = {}
@@ -200,14 +219,19 @@ class Rodb:
         return faction_sum
 
 #=================================================================================
-
+    def get_oc_titles(self):
+        num2title = {}
+        self.c.execute("""select distinct crime_id,crime_name  from factionoc order by et""")
+        for row in self.c:
+            num2title[int(row[0])] = row[1]
+        return num2title
+#=================================================================================
     def get_oc_payment_policy(self,f_id):
         policy_dict = {}
         self.c.execute("""select et,crime_id,percent,set_by from payment_percent where faction_id=? order by et""",(f_id,))
         for row in self.c:
             policy_dict[int(row[1])] = row
         return policy_dict
-
 #=================================================================================
     def get_oc(self, t_id, cn, longsearch, cached_payments):
         """return an octable structure of past OC and possibly an item of future OC"""

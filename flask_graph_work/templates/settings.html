@@ -11,34 +11,50 @@
 
 <h3>Password change</h3>
 <p>
-something about password change, choosing a password, provide old and new.  Get told whether it was accepted.
+Provide old and new.  New password must be at least 8 characters and not a dictionary word or a value used before.
 <br/><a href="/rhubarb/change_pw">change password</a>
 <hr>
 
 <h3>API key</h3>
+{% if got_key[1] %}
+ A problem has been seen using your API key.
+{% endif %}
+{% if got_key[0] %}
+ API key was recorded {{ ak_stats[1] }}
+ <br/>API key was used to obtain stats {{ ak_stats[0] }}
+{% else %}
+ API key not known.
+{% endif %}
+
+{% if not_obsolete %}
 <p>
-something about API key (Do they have one?  Is it current?  Want to set/change/delete it?  Use it for faction data retrieval?)
-<p>
-explanation of how it is used and secured ...
-<br/><a href="/rhubarb/set_api_key">words</a>
+An API key you provide is stored in a database separate from the one used by this web application.  It works without the site operator looking at it.
+<br/><a href="/rhubarb/set_api_key">provide api key</a>
+<br/>
+<br/><a href="/rhubarb/delete_api_key">delete api key</a>
+{% endif %}
 <hr>
 
 <h3>Organised crime count</h3>
 <p>
 There is an award at 100 OC and your leader may use this count to plan what OC to include you in.
-Is your OC count correct?  If your API key is not on record and you are new to the faction (or your faction is new to tornutopia) it might not be.
-<p>
-If your API key is not known your OC count is increased when OC are seen to be executed but this would not know about your record so far.
-<p>
-Current value is {{ player.oc_calc }}; enter the number using the link below to correct it.
-<br/><a href="/rhubarb/set_oc_calc">words</a>
+{% if oc_calc_sr %}
+    <p>Self-reported value is {{ oc_calc_sr }}
+{% else %}
+    Is your OC count correct?  If your API key is not on record and you are new to the faction (or your faction is new to tornutopia) it might not be.
+    <p>
+    If your API key is not known your OC count is increased when OC are seen to be executed but this would not know about your record so far.
+    <p>
+    Current value is {{ player.oc_calc }}; enter the number using the link below to correct it.
+    <br/><a href="/rhubarb/set_oc_calc">Provide a self-reported number of organised crime successes.</a>
+{% endif %}
 <hr>
 
 <h3>Delete account</h3>
 <p>
-something about deleting account - providing password
+Deleting your tornutopia account is possible and requires knowing your password.
 <p>
-<br/><a href="/rhubarb/delete_account">words</a>
+<br/><a href="/rhubarb/delete_account">Delete your account at tornutopia.</a>
 <hr>
 
 </body>

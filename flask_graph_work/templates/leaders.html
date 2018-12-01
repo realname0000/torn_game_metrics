@@ -1,0 +1,28 @@
+<html>
+<head>
+<link rel='stylesheet' type='text/css' href='/style.css' />
+</head>
+<body>
+
+<a href="/rhubarb/faction_ov">Faction overview</a>
+
+<h2>Leader appointment</h2>
+
+
+{% if is_leader %}
+<p>
+<form method="POST">
+	{{ form.hidden_tag() }}
+
+	To demote {{ form.player_demote() }}
+<hr/><p>
+	To promote {{ form.player_promote() }}
+        <p>
+	<button type="submit" value="submit" name="submit">Act on the above selections</button>
+</form>
+{% else %}
+Nothing here for you.
+{% endif %}
+
+</body>
+</html>

@@ -23,11 +23,7 @@ settings (above) is where you can do this.
 </p>
 {% endif%}
 </p>
-{% if is_leader %}
-You are recognised as a leader and get a <a href="/rhubarb/faction_ov">faction overview</a>.
-{% else %}
-You are not a leader and do not see other players here.
-{% endif %}
+<a href="/rhubarb/faction_ov">Faction overview</a>
 <p>
 {% if faction_sum['respect_graph_url'] %}
 <img src="/{{ faction_sum['respect_graph_url'] }}" alt="timeseries graph of faction respect"></a>
@@ -35,6 +31,13 @@ You are not a leader and do not see other players here.
 
 <h3>Your Torn player</h3>
 
+{% if leader_record[0] %}
+<p>
+    Your status as leader is: {{ leader_record[1] }}
+    (set at {{ leader_record[2] }} by {{ leader_record[3] }})
+{% endif %}
+
+<p>
 <table border="1">
 	<tr><th>Player</th><th>Crime</th><th>Number</th><th>Recency</th><th>Most days idle</th><th>Stats<br/>(needs API key)</th><th>Age of data</th><th>OC success</th><th>OC breakdown<br/>(within last year)</th><th>Event list</tr>
 <tr>

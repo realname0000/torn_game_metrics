@@ -24,7 +24,7 @@
 <th>{{player_name}} status near crime time<br/>(with nerve if API key is in database)</th>
 {% endif %}
 <th>Outcome</th>
-{% if cn %}
+{% if cn and percent_to_pay %}
     <th>Paid?</th>
 {% endif %}
 </tr>
@@ -61,7 +61,7 @@
 	 {{key}} = {{r[4][key]}}<br/>
 	 {% endfor %}
         </td>
-{% if cn  %}
+{% if cn and percent_to_pay %}
         <td>
         {% if r[5]['paid_at']  %}
 	paid by {{ r[5]['paid_by'] }} on {{r[5]['paid_at']}}
@@ -72,9 +72,8 @@
 	    <input type="hidden" id="oc_plan_id" name="oc_plan_id" value="{{ r[7] }}">
             <button type="submit" value="pay" name="pay">click when paid</button>
             </form>
+	    {{percent_to_pay}}% each is ${{r[8]}}
 	{% endif %}
-
-
         </td>
 {% endif %}
 

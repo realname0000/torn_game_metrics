@@ -1,0 +1,66 @@
+<html>
+<head>
+<link rel='stylesheet' type='text/css' href='/style.css' />
+</head>
+<body>
+
+<a href="/rhubarb/faction_ov">Faction overview</a>
+
+<h2>Organised crime pay policy</h2>
+
+{% if pending %}
+<h3>There is an update pending for this table - will change in 30 minutes or less.</h3>
+{% endif %}
+
+
+<table border="1">
+<tr>
+<th>Crime type</th>
+<th>Percentage to each player</th>
+<th>Set by leader</th>
+<th>At time</th>
+</tr>
+{% for k in policy.keys() %}
+<tr>
+<td>
+<div id="oc-type-{{k}}">{{k}} {{oc_num2title[k]}}</div>
+</td>
+<td>
+{{policy[k][2]}}
+</td>
+<td>
+{{policy[k][3]}}
+</td>
+<td>
+{{policy[k][0]}}
+</td>
+</tr>
+{% endfor %}
+</table>
+
+{% if pending %}
+<p>
+<h3>There is an update pending for this table - will change in 30 minutes or less.</h3>
+{% endif %}
+
+
+{% if is_leader %}
+<p>
+<form method="POST">
+	{{ form.hidden_tag() }}
+
+	{{ form.cn() }}
+	{{ form.percent() }}
+
+	<button type="submit" value="submit" name="submit">Change</button>
+</form>
+{% endif %}
+
+
+</body>
+</html>
+
+
+
+
+

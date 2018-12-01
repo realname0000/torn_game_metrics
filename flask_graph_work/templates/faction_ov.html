@@ -11,7 +11,18 @@
 
 <h2>Faction overview as seen by {{player.name}}[{{u}}]</h2>
 <p>
-Your faction is {{ faction_sum.name }}[{{ faction_sum.fid }}] with leaders: {{ faction_sum.leadername}}[{{ faction_sum.leader}}] and {{ faction_sum.coleadername}}[{{ faction_sum.coleader}}].
+Your faction is {{ faction_sum.name }}[{{ faction_sum.fid }}] and Torn says leaders are: {{ faction_sum.leadername}}[{{ faction_sum.leader}}] and {{ faction_sum.coleadername}}[{{ faction_sum.coleader}}].
+<br/>
+Leaders defined by your faction or by Torn are:
+<ul>
+{% for kl in extra.keys() %}
+<li>{{ extra[kl][2] }} set by {{ extra[kl][3] }} at {{ extra[kl][4] }}</li>
+{% endfor %}
+</ul>
+
+{% if is_leader %}
+<a href="/rhubarb/leaders">change leaders</a>
+{% endif %}
 
 </p>
 {% if is_leader %}
@@ -29,7 +40,7 @@ Your faction is {{ faction_sum.name }}[{{ faction_sum.fid }}] with leaders: {{ f
     <p>
     <h3>Outcomes of completed OC</h3>
     <table border="1">
-    <tr><th>Crime type</th><th>Crime title</th><th>Long history</th><th>Recently completed</th></tr>
+	    <tr><th>Crime type</th><th>Crime title</th><th>Long history</th><th>Recently completed<br/>(payment guide in this column)</th></tr>
     {% for r in faction_sum.oc_table %}
     <tr>
 	    <td>{{r}}</td>
@@ -40,35 +51,31 @@ Your faction is {{ faction_sum.name }}[{{ faction_sum.fid }}] with leaders: {{ f
     </tr>
     {% endfor %}
     </table>
-
-    <p>
-    <h3>Friendly fire (excluding where attacker lost or escaped)</h3>
-    {% if friendly_fires[0] %}
+{% endif %}
+<p>
+<h3>Friendly fire (excluding where attacker lost or escaped)</h3>
+{% if friendly_fires[0] %}
     There are {{ friendly_fires[0] }} counts of friendly fire in the last 5 days.
     This is computed with current data so take acccount of whether anybody changed faction recently.
-	<ol>{% for ff in friendly_fires[1] %}
-	<li>{{ ff[0] }} attacker was {{ ff[1] }} defender was {{ ff[2] }}</li>
-	{% endfor %}</ol>
-    {% else %}
-        No friendly fire in the last 5 days.
-    {% endif %}
-    <p>
-    <h3>Faction player table</h3>
-    <a href="/rhubarb/faction_player_table">faction player table</a>
-    <p>
-    <h3>Faction data access control</h3>
-    TBC link to control view of faction data by members that are not leaders
+    <ol>
+    {% for ff in friendly_fires[1] %}
+        <li>{{ ff[0] }} attacker was {{ ff[1] }} defender was {{ ff[2] }}</li>
+    {% endfor %}
+    </ol>
 {% else %}
-    You are not a leader/coleader as of the latest information on record.
-    <p>
-    Parts of the faction you can see are ... still to be determined.
+    No friendly fire in the last 5 days.
 {% endif %}
+<p>
+{% if is_leader %}
+    <p>
+    <a href="/rhubarb/faction_player_table">Faction player table</a>
+{% endif %}
+<p>
+<a href="/rhubarb/pay_policy">Faction OC payment policy</a>
 
 <p>
 {% if faction_sum['respect_graph_url'] %}
     <img src="/{{ faction_sum['respect_graph_url'] }}" alt="timeseries graph of faction respect"></a>
-{% else %}
-    No respect graph was found.
 {% endif %}
 </body>
 </html>

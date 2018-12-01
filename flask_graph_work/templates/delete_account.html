@@ -11,12 +11,18 @@
 
 <h3>Delete account</h3>
 <p>
-something about deleting account - providing password
+Your password is required to delete your account.
 <p>
 <form method="POST">
 {{ form.hidden_tag() }}
-<input type="password" id="old_pw" name="old password">
-<button type="submit" value="submit_del" name="submit_delpw">delete tornutopia account</button>
+
+<br />
+
+Tornutopia password:
+{{ form.password() }}
+
+<button type="submit" value="delete" name="delete">Delete</button>
+
 </form>
 <hr>
 
