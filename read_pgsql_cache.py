@@ -31,9 +31,31 @@ print(len(occalc_rows), "OCcalc data items read from postgres")
 oc_calc = {}
 for r in occalc_rows:
     oc_calc[r[1]] = r[2]
+# ===================
 
+
+#   id | faction | timestamp  | percent | username | octype
+#  ----+---------+------------+---------+----------+--------
+#    1 |   11581 | 1542756367 |   20.00 | 1338804  |      8
+
+c_pg.execute("""select faction,octype,percent,username,timestamp from ocpolicy order by timestamp""")
+ocpolicy_rows = c_pg.fetchall()
+print(len(ocpolicy_rows), "OCpolicy data items read from postgres")
+oc_policy_by_faction = {}
+for r in ocpolicy_rows:
+    f_id = r[0]
+    cn = r[1]
+    percent = r[2]
+    p_id = r[3]
+    et = r[4]
+    if not f_id in oc_policy_by_faction:
+        oc_policy_by_faction[f_id] = {}
+    oc_policy_by_faction[f_id][cn] = [percent, p_id, et]
+
+
+# ===================
 c_pg.close()
-if  not len(payment_rows) and not len(occalc_rows):
+if not len(payment_rows) and not len(occalc_rows) and not len(ocpolicy_rows):
     exit(1)
 
 # ===================
@@ -64,6 +86,19 @@ for r in need_todo:
 # ===================
 for pid in oc_calc.keys():
     c2.execute("""update playeroc set oc_calc=? where player_id=?""", (oc_calc[pid], pid,))
+# ===================
+for f_id in oc_policy_by_faction.keys():
+    d = oc_policy_by_faction[f_id]
+    for cn in d.keys():
+        # compare to sqlite
+        c2.execute("""select percent from payment_percent where faction_id=? and crime_id=? order by et desc limit 1""", (f_id, cn,))
+        pc = 0
+        for row in c2:
+            pc = row[0]
+        if float(pc) != float(d[cn][0]):
+            c2.execute("""insert into payment_percent(et,faction_id,crime_id,percent,set_by) values(?,?,?,?,?)""", (d[cn][2], f_id, cn, float(d[cn][0]), d[cn][1],))
+            print("Writing change for", f_id, cn)
+
 # ===================
 
 conn2.commit()

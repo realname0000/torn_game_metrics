@@ -279,6 +279,25 @@ def expire_old_data():
         c.execute("""delete from factionoc where oc_plan_id=?""", (oc,))
     c.execute("""update admin set last_expire = ?""", (now,))
     conn.commit()
+    # old entries from payment_percent
+    factions = []
+    c.execute("""select distinct faction_id from payment_percent""")
+    for row in c:
+        factions.append(row[0])
+    #
+    for fid in factions:
+        cn_todo = {}
+        c.execute("""select count(1),crime_id from payment_percent where faction_id=? group by crime_id""",(fid,))
+        for row in c:
+            if row[0] > 1:
+                cn_todo[row[1]] =1
+        for cn in cn_todo.keys():
+            c.execute("""select et,faction_id,crime_id from payment_percent where faction_id=? and crime_id=? order by et limit 1""",(fid,cn,))
+            ee,ff,cc = None,None,None
+            for row in c:
+                ee,ff,cc = row
+            c.execute("""delete from payment_percent where et=? and faction_id=? and crime_id=?""",(ee,ff,cc,))
+    conn.commit()
     c.execute("""vacuum""")
 
 
@@ -383,6 +402,9 @@ def get_readiness(web, p_id, interval):
     conn.commit()
     if 'OK' == result[0]:
         q1_data = result[1]
+        if type(q1_data) == type('a_string'):
+            printf("Readiness: unexpected string value", q1_data)
+            return "Fail"
         frog=dehtml.Dehtml()
         q1_data['status'][0] = frog.html_clean(q1_data['status'][0])
         q1_data['status'][1] = frog.html_clean(q1_data['status'][1])
