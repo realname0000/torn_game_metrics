@@ -1,0 +1,27 @@
+<html>
+<head></head>
+<body>
+<h2>Reset unknown password</h2>
+
+<p>
+Use this while logged into torn as you will be set a challenge to complete in-game to prove it is really you entering your own ID.
+<p>
+<form method="POST">
+	{{ form.hidden_tag() }}
+
+	Numeric Torn ID:
+	{{ form.username() }}
+
+	<br />
+
+	New tornutopia password (at least 8 characters; not obvious and not used before):
+	{{ form.password() }}
+
+	<button type="submit" value="login" name="login">Reset</button>
+</form>
+<p>
+If you know your current password change it while logged in at <a href="/rhubarb/settings">settings</a>.
+<p>
+If your account does not exist yet register <a href="/rhubarb/register">here</a>.
+</body>
+</html>

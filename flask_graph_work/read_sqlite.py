@@ -335,9 +335,13 @@ class Rodb:
         page_time = int(time.time())
 
         # name and level
+        name = None
         self.c.execute("""select name,level from namelevel where player_id=?""", (p_id,))
         for row in self.c:
             name,level = row
+        if not name:
+            name = 'UNKNOWN'
+            level = 1
 
         # crime numbers and recency
         self.c.execute("""select et,selling_illegal_products,theft,auto_theft,drug_deals,computer_crimes,murder,fraud_crimes,other,total from playercrimes where  player_id = ? order by et""", (p_id,))

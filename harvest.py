@@ -298,8 +298,24 @@ def expire_old_data():
                 ee,ff,cc = row
             c.execute("""delete from payment_percent where et=? and faction_id=? and crime_id=?""",(ee,ff,cc,))
     conn.commit()
+    # continue using that factions list
+    # zero entries from payment_percent
+    for fid in factions:
+        cn_percent = {}
+        cn_count = {}
+        c.execute("""select percent,crime_id from payment_percent where faction_id=?""",(fid,))
+        for row in c:
+            pc, cn = row
+            if cn in cn_count:
+                cn_count[cn] += 1
+            else:
+                cn_count[cn] = 1
+            cn_percent[cn] = pc
+        for cn in cn_percent.keys():
+            if (0 == cn_percent[cn]) and (1 == cn_count[cn]):
+                c.execute("""delete from payment_percent where faction_id=? and crime_id=?""",(fid,cn,))
+    conn.commit()
     c.execute("""vacuum""")
-
 
 def clean_data():
     now = int(time.time())

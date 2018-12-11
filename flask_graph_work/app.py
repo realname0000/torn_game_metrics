@@ -17,6 +17,7 @@ import read_sqlite
 import dehtml
 import random
 import password
+import challenge
 
 re.numeric = re.compile('^[0-9]+$')
 token = re.compile('^([-\d]+)([a-z]+)(\d+)-([0-9a-f]+)$')
@@ -34,7 +35,7 @@ app = Flask(__name__)
 
 app.config.from_pyfile('config.py')
 
-loghandler = logging.handlers.RotatingFileHandler('/home/peabrain/logs/tu0008.log', maxBytes=1024 * 1024, backupCount=10)
+loghandler = logging.handlers.RotatingFileHandler('/home/peabrain/logs/tu0012.log', maxBytes=1024 * 1024, backupCount=10)
 loghandler.setLevel(logging.INFO)
 app.logger.setLevel(logging.INFO)
 app.logger.addHandler(loghandler)
@@ -95,6 +96,29 @@ class Extra_leaders(db.Model):
     player_id = db.Column(db.Integer)
     is_leader = db.Column(db.Integer)
     set_by = db.Column(db.Integer)
+
+
+class Challenge(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    et = db.Column(db.Integer)
+    expires = db.Column(db.Integer)
+    used = db.Column(db.Integer)
+    username = db.Column(db.String(30), unique=True)   # torn numeric id
+    action = db.Column(db.String(20))
+    data = db.Column(db.String(60))
+    pw_ver = db.Column(db.Integer)
+    pw_ver = db.Column(db.Integer)
+    chal_type = db.Column(db.String(10))
+    expect = db.Column(db.String(40))
+
+
+class Response(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    et = db.Column(db.Integer)
+    used = db.Column(db.Integer)
+    username = db.Column(db.String(30), unique=True)   # torn numeric id
+    chal_type = db.Column(db.String(10))
+    provided = db.Column(db.String(40))
 
 
 @login_manager.user_loader
@@ -220,26 +244,69 @@ def register():
         if c != 'yes':
             return render_template('message.html', title='Message', message='Consent to a cookie (for a logged-in session) is required.', logged_in=False)
         pw_ver, pwhash = password.pwhash(0, p)
-        print("type of pwhash is ", type(pwhash), pwhash)
-        #  newu = LUser (id=1, username=str(u), login_allowed=0, must_change_pw=0, pw_ver==pw_ver, pwhash='qwert', registered=et, confirmed=0, last_login=0, failed_logins=0)
-        #  db.session.add(newu)
-        #  db.session.commit()
-        # set challenge to be done before confirmed gets a value
-        return render_template('message.html', title='Message', message='Your registration attempt has U={} P={} C={}'.format(u,p,c), logged_in=False)
+        et = int(time.time())
+        newu = LUser (username=str(u), login_allowed=0, must_change_pw=0, pw_ver=pw_ver, pwhash=pwhash, registered=et, confirmed=0, last_login=0, failed_logins=0)
+        db.session.add(newu)
+        db.session.commit()
+        # set challenge to be done before confirmed is set
+        new_random_challenge = challenge.Challenge()
+        expected = 'NEWUSER:' + new_random_challenge.get_rfc1760_challenge()
+        newc = Challenge(et=et, expires=et+900, used=0, username=u, action='newuser', data='', chal_type='message', expect=expected)
+        db.session.add(newc)
+        db.session.commit()
+        return render_template('challenge.html', title='In-game challenge', challenge=expected)
 
     return render_template('register.html', title='Register', form=form, retrry=False)
 
 #=================================================================================
 
 # This is not the same as "settings" change when pw is known.
-@app.route("/rhubarb/unknown_pw_reset/<username>", methods=['GET','POST'])
-@app.route("/unknown_pw_reset/<username>", methods=['GET','POST'])
-def unknown_pw_reset(username):
-    # prompt for new pw and test quality
-    # and store hash as provisional
-    # set challlenge
-    # later either scrap or use the provisional hash
-    return render_template('message.html', message='reset mechanism for unknown password ... TBC', logged_in=False)
+@app.route("/rhubarb/unknown_pw_reset", methods=['GET','POST'])
+@app.route("/unknown_pw_reset", methods=['GET','POST'])
+def unknown_pw_reset():
+    form = LoginForm() # requests username and password
+
+    # - - - - - - -  POST section
+    if request.method == 'POST':
+        u = None
+        p = None
+        if form.validate_on_submit():
+            try:
+                u = request.form['username']
+                p = request.form['password']
+                # another job either uses or discards the data provided here
+            except:
+                app.logger.info('error reading from login form for pw reset')
+                return redirect('/rhubarb/unknown_pw_reset')
+        else:
+            app.logger.info('change_pw form fails validation')
+            return redirect('/rhubarb/unknown_pw_reset')
+
+        if not test_strength(p):
+            return render_template('message.html', message='That password is not allowed - too obvious.', logged_in=False)
+
+        ban_digest = hashlib.sha1(bytes(p, 'utf-8')).hexdigest()
+        ban = Banned_pw(sha = ban_digest)
+        db.session.add(ban)
+        db.session.commit()
+
+        # rate limit - not too many of these allowed at once
+        rate_discovery = Challenge.query.filter_by(username = u).all()
+        if len(rate_discovery) > 10:
+            return render_template('message.html', message='Too many reset attempts - need to wait.', logged_in=False)
+
+        # set challenge to be done before applied to l_user table
+        new_random_challenge = challenge.Challenge()
+        expected = 'PWRESET:' + new_random_challenge.get_rfc1760_challenge()
+        et = int(time.time())
+        pw_ver, pwhash = password.pwhash(0, p)
+        newc = Challenge(et=et, expires=et+900, used=0, username=u, action='pwreset', data=pwhash, pw_ver=pw_ver, chal_type='message', expect=expected)
+        db.session.add(newc)
+        db.session.commit()
+        return render_template('challenge.html', title='In-game challenge', challenge=expected)
+    # - - - - - - -  POST section
+
+    return render_template('pw_reset.html', form=form)
 
 #=================================================================================
 
@@ -271,24 +338,24 @@ def settings():
             got_key[0] = 0
 
     # massage for human readability
-    if ak_stats[3] < ak_stats[0]:
-        ak_stats[3] = 0
-    else:
-        got_key[1] = 1
-    if ak_stats[2] < ak_stats[0]:
-        ak_stats[2] = 0
-    else:
-        got_key[1] = 1
-    #
-    ak_stats[0] = time.strftime("%Y-%m-%d %H:%M",time.gmtime(ak_stats[0]))
-    ak_stats[1] = time.strftime("%Y-%m-%d %H:%M",time.gmtime(ak_stats[1]))
+    if ak_stats[0] and ak_stats[3]:
+        if ak_stats[3] < ak_stats[0]:
+            ak_stats[3] = 0
+        else:
+            got_key[1] = 1
+        if ak_stats[2] < ak_stats[0]:
+            ak_stats[2] = 0
+        else:
+            got_key[1] = 1
+        #
+        ak_stats[0] = time.strftime("%Y-%m-%d %H:%M",time.gmtime(ak_stats[0]))
+        ak_stats[1] = time.strftime("%Y-%m-%d %H:%M",time.gmtime(ak_stats[1]))
 
     oc_calc_sr = 0
     want_oc = Report_number_oc.query.filter_by(pid = u).all()
     for i in want_oc:
         if player['oc_calc'] != i.number_oc:
             oc_calc_sr = i.number_oc # self-reported number
-
 
     return render_template('settings.html', title='Tornutopia Settings', u=u, name=name, player=player, oc_calc_sr=oc_calc_sr, got_key=got_key, ak_stats=ak_stats, not_obsolete=not_obsolete)
 #=================================================================================
@@ -317,14 +384,14 @@ def change_pw():
           app.logger.info('change_pw form fails validation')
           return redirect('/rhubarb/change_pw')
 
-      # XXX is old pw correct?
+      # is old pw correct?
       wantuser = LUser.query.filter_by(username = u).first()
       if not wantuser:
           # should never happen - has this user been deleted while logged in?
           return redirect('/rhubarb/logout') 
       if not password.checkpw(wantuser.pw_ver, old_pw, wantuser.pwhash):
           return render_template('message.html', message='old password incorrect', logged_in=True)
-      # XXX is new pw acceptable?
+      # is new pw acceptable?
       if not test_strength(new_pw):
           return render_template('message.html', message='That password is not allowed - too obvious.', logged_in=True)
       # set new pwhash for u and show success
@@ -416,7 +483,7 @@ def set_api_key():
         except:
              return render_template('message.html', message='something failed about reading', logged_in=True)
       else:
-          print(form.errors)
+          app.logger.info('error reading from ApikeyForm')
           return render_template('message.html', message='ApikeyForm fails validation.', logged_in=True)
       new_fname = '/var/torn/spool/collect/' + str(int(random.random() * 1000000000))
       with open(new_fname, 'w') as api_out:
@@ -442,9 +509,6 @@ def delete_account():
     # - - - - - - -  POST section
     if request.method == 'POST':
         if form.validate_on_submit():
-            for x in request.form.keys():
-                print('DeleteForm K=', x,  'V=', request.form[x])
-
             try:
                 pw = request.form['password']
             except:
@@ -512,9 +576,6 @@ def leaders():
             return redirect('/rhubarb/logout') 
         player_demote = None
         player_promote = None
-        #
-        for x in request.form.keys():
-            print('LeaderForm K=', x,  'V=', request.form[x])
         #
         if form.is_submitted():
             try:
@@ -629,9 +690,8 @@ def home():
     player = rodb.get_player_data(current_user.username)
     is_leader = bool_leader(int(current_user.username), faction_sum['fid'])
 
-    # what do we know about this plater being a leader?
+    # what do we know about this player being a leader?
     maybe_leader = Extra_leaders.query.filter_by(faction_id = int(faction_sum['fid'])).filter_by(player_id = int(current_user.username)).all()
-    print("Maybe leader?", maybe_leader)
     leader_entry = False
     et = 0
     set_by = None
@@ -642,7 +702,10 @@ def home():
             et = ml.et
             set_by = ml.set_by
             leader_entry = True if ml.is_leader else False
-    leader_record  = [any_data, leader_entry, time.strftime("%Y-%m-%d %H:%M",time.gmtime(et)), rodb.pid2n[str(set_by)]]
+    if any_data:
+        leader_record  = [any_data, leader_entry, time.strftime("%Y-%m-%d %H:%M",time.gmtime(et)), rodb.pid2n[str(set_by)]]
+    else:
+        leader_record  = [any_data, False, 'never', '']
 
     return render_template('home.html', title='home', u=current_user.username, player=player, faction_sum=faction_sum, is_leader=is_leader, leader_record=leader_record)
 

@@ -66,13 +66,17 @@
         {% if r[5]['paid_at']  %}
 	paid by {{ r[5]['paid_by'] }} on {{r[5]['paid_at']}}
 	{% else %}
-            <form method="POST">
-            {{ form.hidden_tag() }}
-	    <input type="hidden" id="faction_id" name="faction_id" value="{{ r[6] }}">
-	    <input type="hidden" id="oc_plan_id" name="oc_plan_id" value="{{ r[7] }}">
-            <button type="submit" value="pay" name="pay">click when paid</button>
-            </form>
-	    {{percent_to_pay}}% each is ${{r[8]}}
+	    {% if r[8] %}
+                <form method="POST">
+                {{ form.hidden_tag() }}
+	        <input type="hidden" id="faction_id" name="faction_id" value="{{ r[6] }}">
+	        <input type="hidden" id="oc_plan_id" name="oc_plan_id" value="{{ r[7] }}">
+                <button type="submit" value="pay" name="pay">click when paid</button>
+                </form>
+	        {{percent_to_pay}}% each is ${{r[8]}}
+	    {% else %}
+	    failed so no payout
+	    {% endif %}
 	{% endif %}
         </td>
 {% endif %}
