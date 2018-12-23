@@ -1,5 +1,6 @@
 #!/bin/bash
 
+umask 022
 cd ~/bin || exit 1
 t=$(date +%s)
 
@@ -19,14 +20,23 @@ case "$s" in
 *) echo quitting because of lock ;  rm -f lock/$$; exit 1;;
 esac
 
+./inclusivity.py > ../logs/V_${t}_1 2> ../logs/V_${t}_2
+
+./read_pgsql_cache.py > ../logs/I_${t}_1 2> ../logs/I_${t}_2
+
+./process_web_api_changes.py > ../logs/A_${t}_1 2> ../logs/A_${t}_2
+
 ./harvest.py > ../logs/H_${t}_1 2> ../logs/H_${t}_2 
 #
+umask 077
 echo .backup /var/torn/readonly_db_tmp | sqlite3 /var/torn/torn_db
-echo 'delete from apikeys;' | sqlite3 /var/torn/readonly_db_tmp
+umask 022
+echo 'update apikeys set key="NOKEY";' | sqlite3 /var/torn/readonly_db_tmp
+chmod go=r /var/torn/readonly_db_tmp
 mv -f /var/torn/readonly_db_tmp /var/torn/readonly_db
 #
 ./display.py > ../logs/D_${t}_1 2> ../logs/D_${t}_2
-for rm_empty in ../logs/[HD]_${t}_2
+for rm_empty in ../logs/[ADIHV]_${t}_2
 do
     [ -f $rm_empty -a ! -s $rm_empty ] && rm $rm_empty
 done
@@ -35,9 +45,13 @@ lb=$(echo "select last_backup from admin;" | sqlite3 /var/torn/torn_db)
 lb=$(expr $lb + 172800)
 if [ 1"$lb" -lt 1"$t" ]
 then
+    umask 077
     echo ".backup /var/torn/auto_backup.$t" | sqlite3 /var/torn/torn_db
+    umask 022
     echo "update admin set last_backup=$t;" | sqlite3 /var/torn/torn_db
     echo .fullschema | sqlite3 /var/torn/torn_db > /var/torn/auto_schema.$t
+    chgrp backup /var/torn/auto_backup.$t
+    chmod g=r /var/torn/auto_backup.$t
     find /var/torn/ -type f -name 'auto_*' -mtime +14 -delete
 fi
 

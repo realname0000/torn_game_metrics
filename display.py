@@ -524,6 +524,7 @@ conn2.commit()
 for pid in watch.keys():
     if pid in p_already:
         continue
-    c2.execute("""delete from playerwatch where player_id = ?""", (pid,))
+    print("player with no faction:", pid)
+    # c2.execute("""delete from playerwatch where player_id = ?""", (pid,))
 conn2.commit()
 c2.close()

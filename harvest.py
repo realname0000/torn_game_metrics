@@ -388,7 +388,7 @@ def refresh_namelevel(web):
             level = result[1]['level']
             name = result[1]['name']
         else:
-            return "Fail"
+            continue
         if m in player_level_already:
             c.execute("""update namelevel set name=? where player_id=?""", (name, m,))
             c.execute("""update namelevel set level=? where player_id=?""", (level, m,))
