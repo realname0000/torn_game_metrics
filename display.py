@@ -436,7 +436,7 @@ def prepare_faction_stats(f_id, fnamepre, var_interval_no, keeping_faction, keep
     print('<p/>', file=intro)
     graph_action=faction_graphs.Draw_faction_graph(docroot, c, var_interval_no, faction_dname)
     graph_urls = graph_action.faction(f_id)
-    print("Planning to use respect graph at:", graph_urls)
+    print("Planning to use faction graphs at:", graph_urls)
     for gu in graph_urls:
         print('<br/><img src="' + gu + '" alt="timeseries graph">', file=intro)
 
@@ -515,6 +515,7 @@ for pid in watch.keys():
 
 if not plan_deletion:
     exit(0)
+
 
 # will need read-write access
 

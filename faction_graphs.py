@@ -13,7 +13,7 @@ class Draw_faction_graph:
 
     def faction(self, f_id):
         urls = []
-        for subject in ('respect',):
+        for subject in ('respect', 'neumune'):
             xx = []
             yy = []
             y2 = []
@@ -22,6 +22,14 @@ class Draw_faction_graph:
             nonzero_data = 0
             if 'respect' == subject:
                 self.c.execute("""select et,respect from factionrespect where f_id=? order by et""",(f_id,))
+                for row in self.c:
+                    last_x = int(row[0])
+                    xx.append(datetime.date.fromtimestamp(int(row[0])))
+                    yy.append(int(row[1]))
+                    if row[1]:
+                        nonzero_data = 1
+            elif 'neumune' == subject:
+                self.c.execute("""select et,neumune from factionstore where faction_id=? order by et""",(f_id,))
                 for row in self.c:
                     last_x = int(row[0])
                     xx.append(datetime.date.fromtimestamp(int(row[0])))
@@ -49,5 +57,5 @@ class Draw_faction_graph:
                 new_graph = Draw_graph.one_graph(self, xx, yy, y2, short_fname, subject, faction_name)
                 urls.append(new_graph)
             else:
-                print("No graph to be plotted - insufficient data.", nonzero_data, len(xx))
+                print("No graph to be plotted (" + subject + ") - insufficient data.", nonzero_data, len(xx))
         return urls

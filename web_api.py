@@ -76,13 +76,13 @@ class Tornapi:
         if 'basic' == how:
             # do on player or faction
             pass
-        elif ('attacknews' == how) or ('attacknewsfull' == how):
+        elif ('attacknews' == how) or ('attacknewsfull' == how) or ('armorynews' == how) or ('armorynewsfull' == how) or ('medical' == how):
             if 'faction' != what:
                 return ["EPARM what/how"]
         elif 'crimes' == how:
             # do on player or faction
             pass
-        elif 'profile' == how:
+        elif (('profile' == how) or ('events' == how)):
             if 'user' != what:
                 return ["EPARM what/how"]
         elif ('bars' == how) or ('personalstats' == how):
@@ -176,6 +176,10 @@ class Tornapi:
             if ('attacknews' == how) or ('attacknewsfull' == how):
                 if 'attacknews' not in data:
                     print("Faction attacknews not found", data)
+                    return ['Bad data']
+            if ('armorynews' == how) or ('armorynewsfull' == how):
+                if 'armorynews' not in data:
+                    print("Faction armorynews not found", data)
                     return ['Bad data']
 
         self.good_user_key[key_id] = 1
