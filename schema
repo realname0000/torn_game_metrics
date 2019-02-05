@@ -43,7 +43,7 @@ CREATE TABLE factionoc (
         success           int,
         money_gain        int,
         respect_gain      int,
-        time_executed     int, time_ready int);
+        time_executed     int, time_ready int, paid_by int, paid_at int);
 CREATE TABLE whodunnit (
         et             int not NULL,
         player_id      int not NULL,
@@ -77,17 +77,6 @@ CREATE TABLE pstats (
         jailed         int,
         peoplebusted   int,
         failedbusts    int, hosp int, od int, oc_read int);
-CREATE TABLE admin (
-        last_clean       int not NULL,
-        last_expire      int not NULL,
-        last_backup      int not NULL,
-        default_apikey   int,
-        fnamepre         text);
-CREATE TABLE factiondisplay (
-        et        int not NULL,
-        f_id      int not NULL  unique primary key,
-        f_name    text,
-        f_web     text);
 CREATE TABLE compare (
         f_id           int not NULL,
         oc_a           int not NULL,
@@ -113,4 +102,59 @@ CREATE TABLE drugs (
         victaken       int not NULL,
         spetaken       int not NULL,
         kettaken       int not NULL);
+CREATE TABLE combat_events (
+fid          int not NULL,
+evid         int not NULL,
+et           int not NULL,
+att_name     text not NULL,
+att_id       int not NULL,
+verb         text not NULL,
+def_name     text not NULL,
+def_id       int not NULL,
+outcome      text not NULL);
+CREATE TABLE admin (
+        last_clean       int not NULL,
+        last_expire      int not NULL,
+        last_backup      int not NULL,
+        default_apikey   int,
+        file_lifetime    int,
+        fnamepre         text,
+        hmac_key          text);
+CREATE TABLE factiondisplay (
+        et        int not NULL,
+        f_id      int not NULL  unique primary key,
+        leader_id   int,
+        coleader_id  int,
+        f_name    text,
+        f_web     text);
+CREATE TABLE factionrespect (
+        et        int not NULL,
+        api_id    int not NULL,
+        f_id      int not NULL,
+        respect   int not NULL);
+CREATE TABLE payment_percent (
+        et            int not NULL,
+        faction_id        int not NULL,
+        crime_id          int not NULL,
+        percent           numeric(5,2) not NULL,
+        set_by            int not NULL
+);
+CREATE TABLE factionstore (
+        et              int not NULL,
+        faction_id      int not NULL,
+        neumune         int not NULL);
+CREATE TABLE factionconsumption (
+        et              int not NULL,
+        faction_id      int not NULL,
+        event_id        int not NULL,
+        player_id       int not NULL,
+        words           text not NULL,
+        neumune         int not NULL,
+        empty_blood     int not NULL,
+        morphine        int not NULL,
+        full_blood      int not NULL,
+        first_aid       int not NULL,
+        small_first_aid int not NULL,
+        bottle_beer     int not NULL
+, xanax int not NULL default 0, energy_refill int not null default 0);
 /* No STAT tables available */

@@ -10,12 +10,14 @@ import sys
 
 t_start_finegrain = time.time()
 
-player_crime_timestep = 43200
-faction_basic_timestep = 43200
+player_crime_timestep = 21600
+faction_basic_timestep = 21600
 level_timestep = 86400
 
-re_named = re.compile('^<a href = "http://www.torn.com/profiles.php.XID=(\d+)">([()\w-]+)</a> (\w+) <a href = "http://www.torn.com/profiles.php.XID=(\d+)">([()\w-]+)<.a>([\w, +().-]*)$')
-re_someone = re.compile('^Someone (\w+) <a href = "http://www.torn.com/profiles.php.XID=(\d+)">([\w-]+)<.a>([\w, +().-]*)$')
+re_named = re.compile('^<a href *= *"http://www.torn.com/profiles.php.XID=(\d+)">([()\w-]+)</a> (\w+) <a href = "http://www.torn.com/profiles.php.XID=(\d+)">([()\w-]+)<.a>([\w, +().-]*)$')
+re_someone = re.compile('^Someone (\w+) <a href *= *"http://www.torn.com/profiles.php.XID=(\d+)">([\w-]+)<.a>([\w, +().-]*)$')
+re_faction_used = re.compile('^<a href *= *"http://www.torn.com/profiles.php.XID=(\d+)">[()\w-]+</a> (used|filled) one of the faction.s (.*) items\.$')
+re_faction_energy = re.compile('^<a href *= *"?http://www.torn.com/profiles.php.XID=(\d+)"?>[()\w-]+</a> used 25 of the faction.s points to refill their energy\.$')
 
 
 def get_player(web, p_id):
@@ -135,6 +137,74 @@ def get_faction(web, f_id, oc_interval):
             conn.commit()
         else:
             print("Problem discovering faction basic? ", result)
+
+        # faction medical stocks - how much neumune?
+        neumune_quantity = 0
+        result = web.torn('faction', f_id, 'medical')
+        conn.commit()
+        if 'OK' == result[0]:
+            med_stocks = result[1]['medical']
+            for med in med_stocks:
+                if 'name' in med:
+                    if med['name'] == 'Neumune Tablet':
+                        # {'ID': 361, 'name': 'Neumune Tablet', 'type': 'Medical', 'quantity': 640}
+                        if 'quantity' in med:
+                            neumune_quantity = med['quantity']
+            # should now have neumune_quantity from api
+            c.execute("""insert into factionstore values(?,?,?)""", (t, f_id, neumune_quantity))
+            conn.commit()
+        else:
+            print("Problem discovering faction medical?", result)
+
+        # neumune usage etc etc
+        usage_events_known = []
+        c.execute("""select event_id from factionconsumption where faction_id=?""",(f_id,))
+        for row in c:
+            usage_events_known.append(row[0])
+        result = web.torn('faction', f_id, 'armorynewsfull') # also  + full
+        if 'OK' == result[0]:
+            arm_news = result[1]['armorynews']
+            for arm_item in arm_news:
+# {'timestamp': 1548061119, 'news': '<a href = "http://www.torn.com/profiles.php?XID=456428">Kill-For-Glory</a> used one of the faction\'s Bottle of Beer items.'}
+                parts_u = re_faction_used.match(arm_news[arm_item]['news'])
+                if parts_u:
+                    if not arm_item in usage_events_known:
+                        et = arm_news[arm_item]['timestamp']
+                        #
+                        what_used = {'neumune':0, 'empty_blood':0, 'morphine':0, 'full_blood':0, 'first_aid':0, 'small_first_aid':0, 'bottle_beer':0, 'xanax':0, 'energy_refill':0}
+                        if parts_u.group(3) == 'Neumune Tablet': what_used['neumune'] += 1
+                        if parts_u.group(3) == 'Empty Blood Bag': what_used['empty_blood'] += 1
+                        if parts_u.group(3) == 'Morphine': what_used['morphine'] += 1
+                        #
+                        if parts_u.group(3) == 'Blood Bag : A+': what_used['full_blood'] += 1
+                        if parts_u.group(3) == 'Blood Bag : A-': what_used['full_blood'] += 1
+                        if parts_u.group(3) == 'Blood Bag : B+': what_used['full_blood'] += 1
+                        if parts_u.group(3) == 'Blood Bag : B-': what_used['full_blood'] += 1
+                        if parts_u.group(3) == 'Blood Bag : O+': what_used['full_blood'] += 1
+                        if parts_u.group(3) == 'Blood Bag : O-': what_used['full_blood'] += 1
+                        #
+                        if parts_u.group(3) == 'First Aid Kit': what_used['first_aid'] += 1
+                        if parts_u.group(3) == 'Small First Aid Kit': what_used['small_first_aid'] += 1
+                        if parts_u.group(3) == 'Bottle of Beer': what_used['bottle_beer'] += 1
+                        if parts_u.group(3) == 'Xanax': what_used['xanax'] += 1
+                        #
+                        c.execute("""insert into factionconsumption  values (?,?,?,?, ?, ?,?,?,?,?,?,?,?, ?)""", (et,f_id,arm_item,parts_u.group(1), parts_u.group(3),
+                            what_used['neumune'], what_used['empty_blood'], what_used['morphine'], what_used['full_blood'], what_used['first_aid'], what_used['small_first_aid'], what_used['bottle_beer'], what_used['xanax'], what_used['energy_refill'] ))
+                    continue # next
+                parts_eu = re_faction_energy.match(arm_news[arm_item]['news'])
+                if parts_eu:
+                    if not arm_item in usage_events_known:
+                        print("AN: processing energy refill -", parts_eu.group(1))
+                        et = arm_news[arm_item]['timestamp']
+                        what_used = {'neumune':0, 'empty_blood':0, 'morphine':0, 'full_blood':0, 'first_aid':0, 'small_first_aid':0, 'bottle_beer':0, 'xanax':0, 'energy_refill':0}
+                        what_used['energy_refill'] = 1
+                        c.execute("""insert into factionconsumption  values (?,?,?,?, ?, ?,?,?,?,?,?,?,?, ?)""", (et,f_id,arm_item,parts_eu.group(1), 'points',
+                            what_used['neumune'], what_used['empty_blood'], what_used['morphine'], what_used['full_blood'], what_used['first_aid'], what_used['small_first_aid'], what_used['bottle_beer'], what_used['xanax'], what_used['energy_refill'] ))
+                    continue # next
+                print("AN:", arm_item, arm_news[arm_item]) # unrecognised kind of armory usage
+        else:
+            print("Problem discovering armorynewsfull ?", result)
+        conn.commit()
 
     if latest_oc+oc_interval < t:
         print("plan to query faction ", repr(f_id), "for CRIMES")
@@ -260,12 +330,14 @@ def expire_old_data():
             return
     weeks_ago = now - (86400 * 28)
     c.execute("""delete from combat_events where et<?""", (weeks_ago,))
+    c.execute("""delete from factionconsumption where et<?""", (weeks_ago,))
     year_ago = now - (86400 * 365)
     c.execute("""delete from playercrimes where et<?""", (year_ago,))
     c.execute("""delete from readiness where et<?""", (year_ago,))
     c.execute("""delete from pstats where et<?""", (year_ago,))
     c.execute("""delete from drugs where et<?""", (year_ago,))
     c.execute("""delete from factionrespect where et<?""", (year_ago,))
+    c.execute("""delete from factionstore where et<?""", (year_ago,))
     # These next ones are more complicated because of foreign keys.
     c.execute("""select oc_plan_id from factionoc where et<?""", (year_ago,))
     oc_to_del = []
@@ -380,6 +452,7 @@ def refresh_namelevel(web):
                 player_level_todo[m] = 1
         else:
             player_level_todo[m] = 1
+            print('planning to get namelevel data for', m)
     #
     for m in player_level_todo:
         result = web.torn('user', m, 'basic')
