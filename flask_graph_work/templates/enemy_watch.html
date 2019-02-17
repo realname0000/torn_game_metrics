@@ -1,0 +1,29 @@
+<html>
+<head>
+</head>
+<body>
+
+<a href="/rhubarb/faction_ov">Faction overview</a>
+
+<h2>Enemy Watch</h2>
+
+{% if is_leader %}
+{% endif %}
+
+<form method="POST">
+	{{ form.hidden_tag() }}
+
+	Choose enemy<br /> {{ form.enemy() }}
+	Choose time range<br /> {{ form.timerange_id() }}
+
+	<button type="submit" value="submit" name="submit">Go</button>
+</form>
+
+<p>
+Or introduce a <a href="/rhubarb/define_timerange/{{now}}-{{now+86400}}">new time range</a>
+
+<p>
+Or <a href="/rhubarb/define_faction_enemies/">change the enemy list</a>
+
+</body>
+</html>

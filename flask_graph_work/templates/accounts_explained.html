@@ -10,18 +10,17 @@ Account names are numeric and equal to a user id at torn.com.  You may only regi
 <p>
 Passwords are a minimum of 8 characters (max 64) and may not consist of values that are too common (e.g. words).  Do not use a password
 here that has been used anywhere else.  Password changes will be possible but not to a value that has been used before.  If you have lost
-your password a reset mechanism is going to be made that will involve confirming control of your player in the game.
-There will be a way (under "settings") to get your account deleted should you want that.
+your password the reset mechanism involves confirming control of your player in the game.
+Under "settings" you can delete your account should you want that.
 
 <p>
-Passwords are hashed, with salt, using ...WHAT??... to ensure no sensitive data such as actual passwords is stored at this site.
+Passwords are hashed, with salt, using bcrypt to ensure no sensitive data such as actual passwords is stored at this site.
 
 <p>
 Your name, email address, or credit card details will not be requested or used in any way.
 
 <p>
 Modern NIST guidance on passwords has been used on this site.
-
 
 <a href="/rhubarb/register">register</a>
 

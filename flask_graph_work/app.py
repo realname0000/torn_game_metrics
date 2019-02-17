@@ -3,7 +3,7 @@ import logging.handlers
 from flask import Flask, render_template, redirect, request
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
-from forms import LoginForm, PaymentForm, PasswordForm, OccalcForm, ApikeyForm, DeleteForm, RegisterForm, OCpolicyForm, LeaderForm
+from forms import LoginForm, PaymentForm, PasswordForm, OccalcForm, ApikeyForm, DeleteForm, RegisterForm, OCpolicyForm, LeaderForm, EnemyForm, TimeForm, DeleteEnemyForm
 import base64
 import datetime
 import hashlib
@@ -20,7 +20,11 @@ import password
 import challenge
 
 re.numeric = re.compile('^[0-9]+$')
-token = re.compile('^([-\d]+)([a-z]+)(\d+)-([0-9a-f]+)$')
+token = re.compile('^([-\d]+)([a-z]+)(\d+)-([0-9a-f]+)$') # used for graphs and combat events
+armory_token = re.compile('^([-\d]+)-(\d+)-([0-9a-f]+)$')
+enemy_token = re.compile('^([-\d]+)-(\d+)-(\d+)-([0-9a-f]+)$')
+target_token = re.compile('^([-\d]+)-(\d+)-(\d+)-(\d+)-([0-9a-f]+)$')
+time_interval = re.compile('^(\d+)-(\d+)$')
 # f_id, crimetype, timestamp, (either number or 'history'),  hmac
 oc_history_picker = re.compile('^([-\d]+)-([0-9])-([0-9]+)-([0-9a-z]+)-([0-9a-f]+)$')
 
@@ -35,7 +39,7 @@ app = Flask(__name__)
 
 app.config.from_pyfile('config.py')
 
-loghandler = logging.handlers.RotatingFileHandler('/home/peabrain/logs/tu0012.log', maxBytes=1024 * 1024, backupCount=10)
+loghandler = logging.handlers.RotatingFileHandler('/home/peabrain/logs/tu0022.log', maxBytes=1024 * 1024, backupCount=10)
 loghandler.setLevel(logging.INFO)
 app.logger.setLevel(logging.INFO)
 app.logger.addHandler(loghandler)
@@ -119,6 +123,18 @@ class Response(db.Model):
     username = db.Column(db.String(30), unique=True)   # torn numeric id
     chal_type = db.Column(db.String(10))
     provided = db.Column(db.String(40))
+
+class Enemy(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    tornid = db.Column(db.String(30))   # torn numeric id
+    username = db.Column(db.String(30))
+    f_id = db.Column(db.Integer)
+
+class Timerange(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    tstart = db.Column(db.Integer)
+    tend = db.Column(db.Integer)
+    f_id = db.Column(db.Integer)
 
 
 @login_manager.user_loader
@@ -206,7 +222,7 @@ def login():
         db.session.commit()
         return render_template('bad_login.html', title='bad login attempt', u=u)
 
-    # form submission failed - show login page again
+    # show form before submission
     return render_template('login.html', title='Sign In', form=form)
 
 #=================================================================================
@@ -251,7 +267,7 @@ def register():
         # set challenge to be done before confirmed is set
         new_random_challenge = challenge.Challenge()
         expected = 'NEWUSER:' + new_random_challenge.get_rfc1760_challenge()
-        newc = Challenge(et=et, expires=et+900, used=0, username=u, action='newuser', data='', chal_type='message', expect=expected)
+        newc = Challenge(et=et, expires=et+900, used=0, username=u, action='newuser', data='', chal_type='message', expect=expected, pw_ver=pw_ver)
         db.session.add(newc)
         db.session.commit()
         return render_template('challenge.html', title='In-game challenge', challenge=expected)
@@ -329,27 +345,31 @@ def settings():
         got_key[0] = 1
 
     # compare to ORM
-    not_obsolete = 1
+    not_obsolete = 1 # assume sqlite is current then check whether there is a more recent psql
     wantevent = Apikey_history.query.filter_by(username = u).first()
     if wantevent:
         if wantevent.et_web_update > ak_stats[1]:
-            not_obsolete = 0
+            not_obsolete = 0 # psql more recent
         if wantevent.deleted:
             got_key[0] = 0
 
     # massage for human readability
     if ak_stats[0] and ak_stats[3]:
         if ak_stats[3] < ak_stats[0]:
+            # error has been fixed
             ak_stats[3] = 0
         else:
+            # problem been seen
             got_key[1] = 1
         if ak_stats[2] < ak_stats[0]:
+            # error has been fixed
             ak_stats[2] = 0
         else:
+            # problem been seen
             got_key[1] = 1
-        #
-        ak_stats[0] = time.strftime("%Y-%m-%d %H:%M",time.gmtime(ak_stats[0]))
-        ak_stats[1] = time.strftime("%Y-%m-%d %H:%M",time.gmtime(ak_stats[1]))
+
+    ak_stats[0] = time.strftime("%Y-%m-%d %H:%M",time.gmtime(ak_stats[0]))
+    ak_stats[1] = time.strftime("%Y-%m-%d %H:%M",time.gmtime(ak_stats[1]))
 
     oc_calc_sr = 0
     want_oc = Report_number_oc.query.filter_by(pid = u).all()
@@ -539,6 +559,7 @@ def faction_ov():
         return redirect('/rhubarb/change_pw')
     rodb = read_sqlite.Rodb()
     faction_sum = rodb.get_faction_for_player(current_user.username)
+    big_losses = rodb.recent_big_losses(faction_sum['fid'])
     player = rodb.get_player_data(current_user.username)
     is_leader = bool_leader(int(current_user.username), faction_sum['fid'])
 
@@ -547,7 +568,8 @@ def faction_ov():
     # extra leaders from ORM
     extra = obtain_leaders_for_faction(current_user.username, faction_sum['fid'])
 
-    return render_template('faction_ov.html', title='Faction Overview', u=current_user.username, player=player, faction_sum=faction_sum, is_leader=is_leader, friendly_fires=friendly_fires, extra=extra)
+    return render_template('faction_ov.html', title='Faction Overview', u=current_user.username, player=player, faction_sum=faction_sum,
+                           is_leader=is_leader, friendly_fires=friendly_fires, extra=extra, nrbl=len(big_losses), big_losses=big_losses)
 #=================================================================================
 @app.route('/leaders', methods=['GET','POST'])
 @login_required
@@ -650,7 +672,7 @@ def pay_policy():
         policy[k][0] = time.strftime("%Y-%m-%d %H:%M",time.gmtime(et))
         if str(read_policy[k][3]) in rodb.pid2n:
             policy[k][3] = rodb.pid2n[ str(read_policy[k][3]) ]
-    # XXX check the orm for a cached alteration to the figures from sqlite
+    # check the orm for a cached alteration to the figures from sqlite
     pending = 0
     want_policy_change = Ocpolicy.query.filter_by(faction = faction_sum['fid']).all()
     for pol_item in want_policy_change:
@@ -884,8 +906,109 @@ def faction_oc_history(tid_cn_t):
     return render_template("completed_oc.html", form=form, cn=int(cn), player_name=player['name'], cu=cu, octable=octable, make_links=True if int(tid) >0 else False, percent_to_pay=percent_to_pay)
 
 #=================================================================================
+@app.route("/armory_index", methods=['GET'])
+@login_required
+def armory_index():
+    if current_user.must_change_pw:
+        return redirect('/rhubarb/change_pw')
 
-@app.route("/rhubarb/attack/<player_role_t>", methods=['GET'])
+    rodb = read_sqlite.Rodb()
+    faction_sum = rodb.get_faction_for_player(current_user.username)
+    player = rodb.get_player_data(current_user.username)
+    is_leader = bool_leader(int(current_user.username), faction_sum['fid'])
+    if not is_leader:
+        return render_template('message.html', title='Denied', u=current_user.username, player=player, message='No access to armorynews!', logged_in=True)
+
+    f_id = faction_sum['fid']
+
+    players = {}
+    conn = sqlite3.connect('file:/var/torn/readonly_db?mode=ro', uri=True)
+    c = conn.cursor()
+    c.execute("select player_id,neumune,empty_blood,morphine,full_blood,first_aid,small_first_aid,bottle_beer,xanax,energy_refill from factionconsumption where faction_id=?", (f_id,))
+    for row in c:
+        p = row[0]
+        # Not as nice as Perl - am I missing a Python trick here?
+        if not p in players:
+            players[p] = {}
+            players[p]['neumune'] = row[1] 
+            players[p]['empty_blood'] = row[2] 
+            players[p]['morphine'] = row[3] 
+            players[p]['full_blood'] = row[4] 
+            players[p]['first_aid'] = row[5] 
+            players[p]['small_first_aid'] = row[6] 
+            players[p]['bottle_beer'] = row[7] 
+            players[p]['xanax'] = row[8] 
+            players[p]['energy_refill'] = row[9] 
+        else:
+            players[p]['neumune'] += row[1] 
+            players[p]['empty_blood'] += row[2] 
+            players[p]['morphine'] += row[3] 
+            players[p]['full_blood'] += row[4] 
+            players[p]['first_aid'] += row[5] 
+            players[p]['small_first_aid'] += row[6] 
+            players[p]['bottle_beer'] += row[7] 
+            players[p]['xanax'] += row[8] 
+            players[p]['energy_refill'] += row[9] 
+    c.close()
+    conn.close()
+
+    right_now = int(time.time())
+    for p in players.keys():
+        players[p]['name'] = rodb.pid2namepid(p)
+        display_selection = (str(p) + '-' + str(right_now) ).encode("utf-8")
+        players[p]['url'] = '/rhubarb/armorynews/' +  str(p) + '-' + str(right_now) + '-' + hmac.new(hmac_key, display_selection, digestmod=hashlib.sha1).hexdigest()
+    
+    return render_template("faction_stuff_used.html", players=players)
+#=================================================================================
+@app.route("/rhubarb/armorynews/<player_t>", methods=['GET'])
+@app.route("/armorynews/<player_t>", methods=['GET'])
+@login_required
+def armorynews(player_t):
+    p_id = None
+    timestamp = None
+    given_hmac = None
+    right_now = int(time.time())
+
+    re_object = armory_token.match(player_t)
+    if re_object:
+        p_id = re_object.group(1)
+        timestamp = re_object.group(2)
+        given_hmac =  re_object.group(3)
+    else:
+        app.logger.info('in armorynews RE did not match URL')
+        return render_template("bad_graph_request.html")
+
+    # calc correct hmac
+    display_selection = (str(p_id) + '-' + str(timestamp) ).encode("utf-8")
+    hmac_hex = hmac.new(hmac_key, display_selection, digestmod=hashlib.sha1).hexdigest()
+
+    # test for correct hmac
+    if not hmac.compare_digest(hmac_hex, given_hmac):
+        return render_template('message.html', message='link has been altered; cannot use it', logged_in=True)
+    # test for acceptable timestamp
+    if ((int(timestamp) + 86400) < right_now):
+        return render_template('message.html', message='too old; link has expired', logged_in=True)
+
+    # need to know faction of the player viewing this page
+    rodb = read_sqlite.Rodb()
+    faction_sum = rodb.get_faction_for_player(current_user.username)
+    f_id = faction_sum['fid']
+    player = rodb.get_player_data(p_id)
+
+    stuff_used = []
+    parm = (int(p_id), int(f_id),)
+    conn = sqlite3.connect('file:/var/torn/readonly_db?mode=ro', uri=True)
+    c = conn.cursor()
+    c.execute("select et,words from factionconsumption where player_id=? and faction_id=? order by et desc", parm)
+    for row in c:
+        printable_time = time.strftime("%Y-%m-%d %H:%M",time.gmtime(row[0]))
+        stuff_used.append([printable_time, row[1]])
+    c.close()
+    conn.close()
+    
+    return render_template("stuff_used.html", player_name=player['name'], stuff_used=stuff_used)
+#=================================================================================
+
 @app.route("/attack/<player_role_t>", methods=['GET'])
 def combat_events(player_role_t):
     p_id = None
@@ -963,6 +1086,271 @@ def combat_events(player_role_t):
     if att_count:
         return render_template("combat_events.html", data=items, role=role, player_name=player_name)
     return render_template("combat_none.html", role=role, player_id=p_id)
+#=================================================================================
+
+@app.route("/rhubarb/enemy_watch", methods=['GET','POST'])
+@app.route("/enemy_watch", methods=['GET','POST'])
+@login_required
+def enemy_watch():
+
+    form = EnemyForm()
+    rodb = read_sqlite.Rodb()
+    faction_sum = rodb.get_faction_for_player(current_user.username)
+    f_id = int(faction_sum['fid'])
+
+    # if form.validate_on_submit():
+    if request.method == 'POST':
+        try:
+            enemy = request.form['enemy']
+            time_id = request.form['timerange_id']
+        except:
+            app.logger.info('error reading from enemy form')
+            return render_template('message.html', message='something wrong with enemy selection', logged_in=True)
+
+        #  get enemy and time details from ORM
+        wantenemy = Enemy.query.filter_by(id = enemy).first()
+        if not wantenemy:
+            # unknown enemy id in postgres
+            return render_template('message.html', message='enemy selection not recognised', logged_in=True)
+        if not wantenemy.f_id == f_id:
+            return render_template('message.html', message='enemy selection looks invalid for this faction', logged_in=True)
+
+        wanttime = Timerange.query.filter_by(id = time_id).first()
+        if not wanttime:
+            # unknown time id in postgres
+            return render_template('message.html', message='timerange selection not recognised', logged_in=True)
+        if not wanttime.f_id == f_id:
+            return render_template('message.html', message='timerange selection looks invalid for this faction', logged_in=True)
+
+        # link to next page (with HMAC)
+        selector = str(wantenemy.tornid) + '-' + str(wanttime.id) + '-'  + str(int(time.time()))
+        hmac_hex = hmac.new(hmac_key, selector.encode("utf-8"), digestmod=hashlib.sha1).hexdigest()
+        return redirect('/rhubarb/enemy_log/' + selector + '-' + hmac_hex) 
+
+    # show form before submission
+    form.enemy.choices = [(e.id, e.username + '[' + e.tornid + ']') for e in Enemy.query.filter_by(f_id = f_id).all()]
+    form.timerange_id.choices = [(t.id, time.strftime("%A %Y-%m-%d %H:%M",time.gmtime(t.tstart)) + ' to ' + time.strftime("%A %Y-%m-%d %H:%M",time.gmtime(t.tend))) for t in Timerange.query.filter_by(f_id = f_id).all()]
+    return render_template('enemy_watch.html', title='Enemy Watch', form=form, now=int(time.time()))
+
+#=================================================================================
+@app.route("/enemy_log/<player_t_t_hmac>", methods=['GET'])
+@app.route("/rhubarb/enemy_log/<player_t_t_hmac>", methods=['GET'])
+@login_required
+def enemy_log(player_t_t_hmac):
+# display summary for that enemy and time range
+# with links to times and outcomes
+    p_id = None
+    time_id = None
+    timestamp = None
+    given_hmac = None
+    right_now = int(time.time())
+
+    re_object = enemy_token.match(player_t_t_hmac)
+    if re_object:
+        p_id = re_object.group(1)
+        time_id = re_object.group(2)
+        timestamp = re_object.group(3)
+        given_hmac =  re_object.group(4)
+    else:
+        app.logger.info('in enemy_log RE did not match URL')
+        return render_template("bad_graph_request.html")
+
+    # calc correct hmac
+    display_selection = (str(p_id) + '-' + str(time_id) +  '-' + str(timestamp) ).encode("utf-8")
+    hmac_hex = hmac.new(hmac_key, display_selection, digestmod=hashlib.sha1).hexdigest()
+
+    # test for correct hmac
+    if not hmac.compare_digest(hmac_hex, given_hmac):
+        return render_template('message.html', message='link has been altered; cannot use it', logged_in=True)
+    # test for acceptable timestamp
+    if ((int(timestamp) + 86400) < right_now):
+        return render_template('message.html', message='too old; link has expired', logged_in=True)
+
+    # need to know faction of the player viewing this page
+    rodb = read_sqlite.Rodb()
+    faction_sum = rodb.get_faction_for_player(current_user.username)
+    f_id = faction_sum['fid']
+
+    enemy = Enemy.query.filter_by(tornid = p_id).first()
+    if not enemy:
+        return render_template('message.html', message='enemy not recognised in enemy_log', logged_in=True)
+
+    wanttime = Timerange.query.filter_by(id = time_id).first()
+    if not wanttime:
+        # unknown time id in postgres
+        return render_template('message.html', message='timerange not recognised in enemy_log', logged_in=True)
+    if not wanttime.f_id == f_id:
+        return render_template('message.html', message='timerange selection looks invalid for this faction in enemy_log', logged_in=True)
+    tstart = wanttime.tstart
+    tend = wanttime.tend
+    if tend > right_now - 3600:
+        tend = right_now - 3600 # do not display events within the last hour
+
+    attacks = rodb.get_attacks_on_target(faction_sum['fid'], p_id, tstart, tend)
+    deco_attacks = []
+    for d in attacks:
+        name = str(d[1]) + '[' + str(d[2]) + ']'
+        display_selection = str(p_id) + '-' + str(d[2])+ '-' + str(tstart) +  '-' + str(tend)
+        hmac_hex = hmac.new(hmac_key, display_selection.encode("utf-8"),  digestmod=hashlib.sha1).hexdigest()
+        link = '/rhubarb/target_log/' + display_selection + '-' + hmac_hex
+        deco_attacks.append([d[0], name, link])
+    
+    return render_template("enemy_log.html", faction_sum=faction_sum, attacks=deco_attacks, target=str(enemy.username) + '[' + str(p_id) + ']')
+
+#=================================================================================
+@app.route("/target_log/<defid_attid_tstart_tend_hmac>", methods=['GET'])
+@app.route("/rhubarb/target_log/<defid_attid_tstart_tend_hmac>", methods=['GET'])
+def target_log(defid_attid_tstart_tend_hmac):
+    # defails of attacks on a specific target by a specific player
+    defid = None
+    attid = None
+    tstart = None
+    tend = None
+    given_hmac = None
+    right_now = int(time.time())
+
+    re_object = target_token.match(defid_attid_tstart_tend_hmac)
+    if re_object:
+        defid = re_object.group(1)
+        attid = re_object.group(2)
+        tstart = re_object.group(3)
+        tend = re_object.group(4)
+        given_hmac =  re_object.group(5)
+    else:
+        app.logger.info('in target_log RE did not match URL')
+        return render_template("bad_graph_request.html")
+
+    # calc correct hmac
+    display_selection = str(defid) + '-' + str(attid)+ '-' + str(tstart) +  '-' + str(tend)
+    hmac_hex = hmac.new(hmac_key, display_selection.encode("utf-8"),  digestmod=hashlib.sha1).hexdigest()
+
+    # test for correct hmac
+    if not hmac.compare_digest(hmac_hex, given_hmac):
+        return render_template('message.html', message='link has been altered; cannot use it', logged_in=True)
+#   # test for acceptable timestamp
+#   if ((int(timestamp) + 86400) < right_now):
+#       return render_template('message.html', message='too old; link has expired', logged_in=True)
+
+    # from here it's similar to combat_events and uses the same template
+    role='attack'
+    conn = sqlite3.connect('file:/var/torn/readonly_db?mode=ro', uri=True)
+    c = conn.cursor()
+    c.execute("select et,att_name,att_id,verb,def_name,def_id,outcome from combat_events where def_id = ? and att_id=? and et>? and et<? order by et desc", (defid,attid,tstart,tend,))
+    items = []
+    old_et = 0
+    old_att_id = 0
+    old_def_id = 0
+    safe_text = dehtml.Dehtml()
+    for i in c:
+        et = i[0]
+        if (old_et == et) and (old_att_id == i[2]) and (old_def_id == i[5]):
+            continue
+        iso_time = datetime.datetime.utcfromtimestamp(et).isoformat()
+        items.append( { 'et': iso_time,  'att_name': safe_text.html_clean(i[1]),  'att_id': i[2], 'verb': i[3], 'def_name': safe_text.html_clean(i[4]), 'def_id': i[5],  'outcome': safe_text.html_clean(i[6])} )
+        old_et = et
+        old_att_id = i[2]
+        old_def_id = i[5]
+        player_name = i[1]
+    c.close()
+    conn.close()
+    
+    return render_template("combat_events.html", data=items, role=role, player_name=player_name)
+
+#=================================================================================
+@app.route("/define_faction_enemies/", methods=['GET','POST'])
+@app.route("/rhubarb/define_faction_enemies/", methods=['GET','POST'])
+@login_required
+def define_faction_enemies():
+    form = DeleteEnemyForm()
+    rodb = read_sqlite.Rodb()
+    faction_sum = rodb.get_faction_for_player(current_user.username)
+    f_id = int(faction_sum['fid'])
+    is_leader = bool_leader(int(current_user.username), faction_sum['fid'])
+
+    if not is_leader:
+       return redirect('/rhubarb/home') 
+
+    # read enemies from ORM - BEFORE the POST section otherwise form choices won't be ready
+    baddies = {}
+    want_enemy = Enemy.query.filter_by(f_id = faction_sum['fid']).all()
+    for enemy in want_enemy:
+        baddies[enemy.tornid] = enemy.username
+    form.de_id.choices = [( int(k), baddies[k] + '[' + k + ']') for k in sorted(baddies.keys())]
+
+    # - - - - - - -  POST section
+    if request.method == 'POST':
+        if form.validate_on_submit():
+            try:
+                de_id = request.form['de_id']
+            except:
+                app.logger.info('error involving DeleteEnemyForm')
+                return render_template('message.html', title='delete enemy', message='DeleteEnemyForm exception reading input', logged_in=True)
+        else:
+            app.logger.info('DeleteEnemyForm fails validation')
+            return render_template('message.html', title='delete enemy', message='DeleteEnemyForm failed validation: ' + str(request.form),  form=form , logged_in=True)
+
+        wantenemy = Enemy.query.filter_by(tornid = de_id).filter_by(f_id = faction_sum['fid']).first()
+        if wantenemy:
+            db.session.delete(wantenemy)
+            db.session.commit()
+        return redirect('/rhubarb/enemy_watch')
+    # - - - - - - -  POST section
+
+
+    return render_template('define_faction_enemies.html', title='Enemies', form=form, f_id=f_id)
+#=================================================================================
+@app.route("/define_timerange/<t_to_t>", methods=['GET','POST'])
+@app.route("/rhubarb/define_timerange/<t_to_t>", methods=['GET','POST'])
+@login_required
+def define_timerange(t_to_t):
+    form = TimeForm()
+    rodb = read_sqlite.Rodb()
+    faction_sum = rodb.get_faction_for_player(current_user.username)
+    f_id = int(faction_sum['fid'])
+
+    # sane defaults
+    tstart = int(time.time())
+    tend = tstart + 86400
+
+    # what is t_to_t telling us?
+    re_object = time_interval.match(t_to_t)
+    if re_object:
+        tstart = int(re_object.group(1))
+        tend = int(re_object.group(2))
+
+    if tstart > tend:
+        tstart, tend = tend, tstart
+
+    # - - - - - - -  POST section
+    if request.method == 'POST':
+        new_tr = Timerange (tstart=tstart, tend=tend, f_id=f_id)
+        db.session.add(new_tr)
+        db.session.commit()
+        #return render_template('message.html', title='TBC', message='plan to creat this timerange {} to {}'.format(tstart,tend), logged_in=True)
+        return redirect('/rhubarb/enemy_watch')
+    # - - - - - - -  POST section
+
+    # variations: plus one day etc
+    start_block = []
+    start_block.append( [ 'planned time', tstart, time.strftime("%A %Y-%m-%d %H:%M",time.gmtime(tstart)) ] )
+    start_block.append( [ 'plus 1 day', tstart+86400, time.strftime("%A %Y-%m-%d %H:%M",time.gmtime(tstart+86400)) ] )
+    start_block.append( [ 'minus 1 day', tstart-86400, time.strftime("%A %Y-%m-%d %H:%M",time.gmtime(tstart-86400)) ] )
+    start_block.append( [ 'plus 1 hour', tstart+3600, time.strftime("%A %Y-%m-%d %H:%M",time.gmtime(tstart+3600)) ] )
+    start_block.append( [ 'minus 1 hour', tstart-3600, time.strftime("%A %Y-%m-%d %H:%M",time.gmtime(tstart-3600)) ] )
+    start_block.append( [ 'plus 1 minute', tstart+60, time.strftime("%A %Y-%m-%d %H:%M",time.gmtime(tstart+60)) ] )
+    start_block.append( [ 'minus 1 minute', tstart-60, time.strftime("%A %Y-%m-%d %H:%M",time.gmtime(tstart-60)) ] )
+
+    end_block = []
+    end_block.append( [ 'planned time', tend, time.strftime("%A %Y-%m-%d %H:%M",time.gmtime(tend)) ] )
+    end_block.append( [ 'plus 1 day', tend+86400, time.strftime("%A %Y-%m-%d %H:%M",time.gmtime(tend+86400)) ] )
+    end_block.append( [ 'minus 1 day', tend-86400, time.strftime("%A %Y-%m-%d %H:%M",time.gmtime(tend-86400)) ] )
+    end_block.append( [ 'plus 1 hour', tend+3600, time.strftime("%A %Y-%m-%d %H:%M",time.gmtime(tend+3600)) ] )
+    end_block.append( [ 'minus 1 hour', tend-3600, time.strftime("%A %Y-%m-%d %H:%M",time.gmtime(tend-3600)) ] )
+    end_block.append( [ 'plus 1 minute', tend+60, time.strftime("%A %Y-%m-%d %H:%M",time.gmtime(tend+60)) ] )
+    end_block.append( [ 'minus 1 minute', tend-60, time.strftime("%A %Y-%m-%d %H:%M",time.gmtime(tend-60)) ] )
+
+    return render_template('define_timerange.html', title='Timerange', form=form, start_block=start_block, end_block=end_block, tstart=tstart, tend=tend, f_id=f_id)
+
 #=================================================================================
 def test_strength(pw):
     if len(pw) < 8:

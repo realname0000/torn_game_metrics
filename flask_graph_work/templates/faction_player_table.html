@@ -18,7 +18,7 @@ Your faction is {{ faction_sum.name }} [{{ faction_sum.fid }}] with leaders: {{ 
 You are recognised as a leader so the player table will be shown.
 
 <table border="1">
-	<tr><th>Player</th><th>Crime</th><th>Number</th><th>Recency</th><th>Most days idle</th><th>Stats<br/>(needs API key)</th><th>Age of data</th><th>OC success</th><th>OC breakdown<br/>(within last year)</th><th>Event list</tr>
+	<tr><th>Player</th><th>Crime</th><th>Number</th><th>Recency</th><th>Most days idle</th><th>Stats<br/>(needs API key)</th><th>Age of data</th><th>OC success</th><th>OC breakdown<br/>(within last year)</th><th>Event list</th><th>Graphs</th></tr>
 
 {% for pid in pt %}
 <tr>
@@ -66,6 +66,17 @@ You are recognised as a leader so the player table will be shown.
           <a href="/rhubarb/attack/{{key}}">{{pt[pid].attacklinks[key]}}</a></br>
          {% endfor %}
         </td>
+        <td>
+         {% for g in pt[pid].js_graphs %}
+	 <a href="/rhubarb/graph/{{g[0]}}"> {{g[1]}}</a><br/>
+         {% endfor %}
+         {% for g in pt[pid].img_graphs %}
+	 <br/>
+	 <a href="/{{g[0]}}"> {{g[1]}}</a>
+         {% endfor %}
+        </td>
+
+
 
 </tr>
 {% endfor %}

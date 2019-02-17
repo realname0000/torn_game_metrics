@@ -42,3 +42,14 @@ class OCpolicyForm(FlaskForm):
 class LeaderForm(FlaskForm):
     player_demote = SelectField('player_demote',  id = 'player_demote', coerce=int, default=0)
     player_promote = SelectField('player_promote',id = 'player_promote', coerce=int, default=0)
+
+class EnemyForm(FlaskForm):
+    enemy = RadioField(validators = [DataRequired()])
+    timerange_id = RadioField(validators = [DataRequired()])
+
+class DeleteEnemyForm(FlaskForm):
+    de_id = SelectField('de_id', validators=[DataRequired()], id = 'select_enemy', coerce=int)
+    submit = SubmitField('Delete')
+
+class TimeForm(FlaskForm):
+    pass

@@ -1,0 +1,28 @@
+<html>
+<head></head>
+<body>
+
+<a href="/rhubarb/logout">LOGOUT</a>
+<br/>
+<br/>
+<a href="/rhubarb/home">home</a>
+<br/>
+<a href="/rhubarb/enemy_watch">enemy watch</a>
+
+<h2>Add or remove an enemy of faction {{f_id}}</h2>
+
+Delete an existing enemy using the selector:
+<p>
+<form method="POST">
+        {{ form.hidden_tag() }}
+        {{ form.de_id() }}
+        {{ form.submit() }}
+</form>
+
+
+<p>
+Add a new enemy id in the text box .. TBC
+
+
+</body>
+</html>

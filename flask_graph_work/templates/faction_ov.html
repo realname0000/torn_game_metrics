@@ -23,6 +23,20 @@ Leaders defined by your faction or by Torn are:
 {% if is_leader %}
 <a href="/rhubarb/leaders">change leaders</a>
 {% endif %}
+<p>
+
+{% if nrbl %}
+    <hr/>
+    <h3><font color="red">Recent Big Losses (enemies chaining)</font></h3>
+    <ul>
+    {% for loss in big_losses %}
+        <li>{{ loss[0] }}
+		<a href="https://www.torn.com/profiles.php?XID={{loss[2]}}#/">{{ loss[1] }}[{{ loss[2] }}]</a>
+        {{ loss[3] }}[{{ loss[4] }}] {{ loss[5] }} </li>
+    {% endfor %}
+    </ul>
+    <hr/>
+{% endif %}
 
 </p>
 {% if is_leader %}
@@ -69,13 +83,22 @@ Leaders defined by your faction or by Torn are:
 {% if is_leader %}
     <p>
     <a href="/rhubarb/faction_player_table">Faction player table</a>
+    <p>
+    <a href="/rhubarb/armory_index">Faction items used</a> (extracted from armorynews and kept for 28 days) (does not include loans)
 {% endif %}
+
+<p>
+<a href="/rhubarb/enemy_watch">Faction attacks on enemies</a> (excluding the last hour)
+
 <p>
 <a href="/rhubarb/pay_policy">Faction OC payment policy</a>
 
 <p>
 {% if faction_sum['respect_graph_url'] %}
     <img src="/{{ faction_sum['respect_graph_url'] }}" alt="timeseries graph of faction respect"></a>
+{% endif %}
+{% if faction_sum['respect_graph_url'] %}
+    <img src="/{{ faction_sum['neumune_graph_url'] }}" alt="timeseries graph of faction neumune stock"></a>
 {% endif %}
 </body>
 </html>

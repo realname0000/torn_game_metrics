@@ -1,0 +1,38 @@
+<html>
+<head>
+<title>Armorynews (stuff used from faction)</title>
+</head>
+<body>
+    <a href="/rhubarb/faction_ov">Faction overview</a>
+
+    <h1>Faction stuff used (expires after 28 days)</h1>
+    <table border='1'>
+    <tr>
+    <th>player</th>
+    <th>neumune</th>
+    <th>xanax</th>
+    <th>empty blood bag</th>
+    <th>full blood bag</th>
+    <th>morphine</th>
+    <th>first aid</th>
+    <th>small first aid</th>
+    <th>bottle beer</th>
+    <th>energy refill</th>
+    </tr>
+    {% for p in players.keys() %}
+    <tr>
+    <td><a href="{{players[p]['url']}}"> {{players[p]['name']}}</a></td>
+    <td>{{players[p]['neumune']}}</td>
+    <td>{{players[p]['xanax']}}</td>
+    <td>{{players[p]['empty_blood']}}</td>
+    <td>{{players[p]['full_blood']}}</td>
+    <td>{{players[p]['morphine']}}</td>
+    <td>{{players[p]['first_aid']}}</td>
+    <td>{{players[p]['small_first_aid']}}</td>
+    <td>{{players[p]['bottle_beer']}}</td>
+    <td>{{players[p]['energy_refill']}}</td>
+    </tr>
+    {% endfor %}
+    </table>
+</body>
+</html>

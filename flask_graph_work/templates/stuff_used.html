@@ -1,0 +1,17 @@
+<html>
+<head>
+<title>Armorynews (stuff used from faction)</title>
+</head>
+<body>
+    <a href="/rhubarb/armory_index">armory index</a>
+
+    <h1>Faction stuff used</h1>
+    <h2>{{ player_name }} list</h2>
+    <p>
+    <ol>
+    {% for item in stuff_used %}
+    <li>{{ item[0] }} {{ item[1] }}</li>
+    {% endfor %}
+    </ol>
+</body>
+</html>

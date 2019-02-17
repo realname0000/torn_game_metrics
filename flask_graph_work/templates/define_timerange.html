@@ -1,0 +1,32 @@
+<html>
+<head></head>
+<body>
+
+<a href="/rhubarb/logout">LOGOUT</a>
+<br/>
+<br/>
+<a href="/rhubarb/home">home</a>
+<br/>
+<a href="/rhubarb/enemy_watch">enemy watch</a>
+
+<h2>Define a timerange for faction {{f_id}}</h2>
+
+Start:
+{% for tl in start_block %}
+<br/>{{tl[0]}} <a href = "/rhubarb/define_timerange/{{tl[1]}}-{{tend}}">{{tl[2]}}</a>
+{% endfor %}
+<p>
+End:
+{% for tl in end_block %}
+<br/>{{tl[0]}} <a href = "/rhubarb/define_timerange/{{tstart}}-{{tl[1]}}">{{tl[2]}}</a>
+{% endfor %}
+
+<p>
+<form method="POST">
+{{ form.hidden_tag() }}
+<br />
+<button type="submit" value="Right" name="Right">Right</button>
+</form>
+
+</body>
+</html>

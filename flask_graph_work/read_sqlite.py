@@ -53,6 +53,24 @@ class Rodb:
             self.pid2n[str(row[0])] = row[1] + '[' + str(row[0]) + ']'
 
 #=================================================================================
+    def recent_big_losses(self,fid):
+        rbl = []
+        recent = int(time.time()) - 604800
+
+        self.c.execute("""select combat_events.et,att_name,att_id,def_name,def_id,outcome from combat_events join playerwatch where playerwatch.player_id=combat_events.def_id and"""
+                   """ playerwatch.faction_id=?  and combat_events.outcome like '%-%.%' and combat_events.et > ? order by combat_events.et""", (fid,recent,))
+        for row in self.c:
+            outcome = row[-1]
+            q=outcome.rstrip(')')
+            w=q.lstrip(' (')
+            num=float(w)
+            if num <= -40:  ## chain hit 250 by enemy
+                combat = list(row)
+                combat[0] = time.strftime("%Y-%m-%d %H:%M", time.gmtime(row[0]))
+                rbl.append(combat)
+
+        return rbl
+#=================================================================================
     def getkey(self):
         return self.hmac_key
 #=================================================================================
@@ -96,6 +114,23 @@ class Rodb:
 
         return [len(fire), fire]
 #=================================================================================
+    def get_attacks_on_target(self, f_id, p_id, tstart, tend):
+
+        f_id = int(f_id)
+        fire = []
+
+        self.c.execute("""select count(att_id) as c,att_name,att_id """ +
+        """from combat_events """ +
+        """where ? = (select faction_id from playerwatch where playerwatch.player_id = combat_events.att_id) """ +
+        """and combat_events.def_id = ? """ +
+        """and combat_events.et > ? """ +
+        """and combat_events.et < ? """ +
+        """group by att_id order by c desc""", (f_id, p_id, tstart, tend,) )
+        for row in self.c:
+            fire.append(row)
+
+        return fire
+#=================================================================================
     def get_faction_for_player(self, u):
 
         faction_sum = {'fid':'0', 'name':'?', 'leader':0, 'coleader':0, 'leadername':'?', 'coleadername':'?'}
@@ -119,6 +154,8 @@ class Rodb:
             for row in self.c:
                 faction_sum['leader'] = row[0]
                 faction_sum['coleader'] = row[1]
+
+            faction_sum['leader'] = 1338804 # XXX XXX XXX do not allow this into prod
 
             self.c.execute("""select name from namelevel where player_id=?""", (faction_sum['leader'],))
             for row in self.c:
@@ -166,6 +203,16 @@ class Rodb:
         except:
             # graph not ready
             faction_sum['respect_graph_url'] = None
+        # neumune graph
+        graphname = hashlib.sha1(bytes('faction_png_graph' + str(f_id) + faction_dname + 'neumune', 'utf-8')).hexdigest()
+        short_fname = 'faction/' +  faction_dname + '/' + graphname + '.png'
+        long_fname = self.docroot + short_fname
+        try:
+            mtime = os.stat(long_fname).st_mtime
+            faction_sum['neumune_graph_url'] = short_fname
+        except:
+            # graph not ready
+            faction_sum['neumune_graph_url'] = None
 
         # API ids, multiple values expected
         id_used = {}

@@ -1,0 +1,19 @@
+<html>
+<head>
+
+<a href="/rhubarb/enemy_watch">enemy watch</a>
+
+<title>Combat Events - attacks on chosen enemies </title>
+</head>
+<body>
+	<h1>Faction enemy log for {{target}}</h1>
+    <p>
+    Events in the last hour are never shown to make these records useless for chain retaliation.
+    <p>
+    <ul>
+    {% for item in attacks %}
+    <li>{{item[0]}} <a href="{{item[2]}}">{{item[1]}}</a></li>
+    {% endfor %}
+    </ul>
+</body>
+</html>
