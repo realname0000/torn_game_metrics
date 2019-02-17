@@ -160,7 +160,7 @@ def get_faction(web, f_id, oc_interval):
         usage_events_known = []
         c.execute("""select event_id from factionconsumption where faction_id=?""",(f_id,))
         for row in c:
-            usage_events_known.append(row[0])
+            usage_events_known.append(int(row[0]))
         result = web.torn('faction', f_id, 'armorynewsfull') # also  + full
         if 'OK' == result[0]:
             arm_news = result[1]['armorynews']
@@ -168,7 +168,7 @@ def get_faction(web, f_id, oc_interval):
 # {'timestamp': 1548061119, 'news': '<a href = "http://www.torn.com/profiles.php?XID=456428">Kill-For-Glory</a> used one of the faction\'s Bottle of Beer items.'}
                 parts_u = re_faction_used.match(arm_news[arm_item]['news'])
                 if parts_u:
-                    if not arm_item in usage_events_known:
+                    if not int(arm_item) in usage_events_known:
                         et = arm_news[arm_item]['timestamp']
                         #
                         what_used = {'neumune':0, 'empty_blood':0, 'morphine':0, 'full_blood':0, 'first_aid':0, 'small_first_aid':0, 'bottle_beer':0, 'xanax':0, 'energy_refill':0}
@@ -193,8 +193,7 @@ def get_faction(web, f_id, oc_interval):
                     continue # next
                 parts_eu = re_faction_energy.match(arm_news[arm_item]['news'])
                 if parts_eu:
-                    if not arm_item in usage_events_known:
-                        print("AN: processing energy refill -", parts_eu.group(1))
+                    if not int(arm_item) in usage_events_known:
                         et = arm_news[arm_item]['timestamp']
                         what_used = {'neumune':0, 'empty_blood':0, 'morphine':0, 'full_blood':0, 'first_aid':0, 'small_first_aid':0, 'bottle_beer':0, 'xanax':0, 'energy_refill':0}
                         what_used['energy_refill'] = 1
