@@ -400,6 +400,8 @@ def prepare_faction_stats(f_id, fnamepre, var_interval_no, keeping_faction, keep
         print("HELP - docroot is not defined")
     if not faction_web:
         print("HELP - faction_web is not defined")
+    if not faction_web:
+        faction_web = 'this-is-a-default-bzgyigakhlaoitgyixfdigskivgskisfyifsi'
     introdir = docroot + 'intro/' + faction_web
     try:
         mtime = os.stat(introdir).st_mtime

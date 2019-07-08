@@ -1,0 +1,26 @@
+<html>
+<head></head>
+<body>
+
+<a href="/rhubarb/logout">LOGOUT</a>
+<br/>
+<br/>
+<a href="/rhubarb/home">home</a>
+<br/>
+<a href="/rhubarb/enemy_watch">enemy watch</a>
+
+<h2>Add an enemy of faction {{f_id}}</h2>
+
+<p>
+Or add a new (numeric) enemy id in the text box.
+<br/>
+<form method="POST">
+	{{ form.hidden_tag() }}
+        {{ form.add_id() }}
+	<p>
+        {{ form.submit_add() }}
+</form>
+
+
+</body>
+</html>

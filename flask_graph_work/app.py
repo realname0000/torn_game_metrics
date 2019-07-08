@@ -3,7 +3,7 @@ import logging.handlers
 from flask import Flask, render_template, redirect, request
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
-from forms import LoginForm, PaymentForm, PasswordForm, OccalcForm, ApikeyForm, DeleteForm, RegisterForm, OCpolicyForm, LeaderForm, EnemyForm, TimeForm, DeleteEnemyForm
+from forms import LoginForm, PaymentForm, PasswordForm, OccalcForm, ApikeyForm, DeleteForm, RegisterForm, OCpolicyForm, LeaderForm, EnemyForm, TimeForm, DeleteEnemyForm, AddEnemyForm
 import base64
 import datetime
 import hashlib
@@ -39,7 +39,7 @@ app = Flask(__name__)
 
 app.config.from_pyfile('config.py')
 
-loghandler = logging.handlers.RotatingFileHandler('/home/peabrain/logs/tu0022.log', maxBytes=1024 * 1024, backupCount=10)
+loghandler = logging.handlers.RotatingFileHandler('/home/peabrain/logs/tu0023.log', maxBytes=1024 * 1024, backupCount=10)
 loghandler.setLevel(logging.INFO)
 app.logger.setLevel(logging.INFO)
 app.logger.addHandler(loghandler)
@@ -1257,10 +1257,10 @@ def target_log(defid_attid_tstart_tend_hmac):
     return render_template("combat_events.html", data=items, role=role, player_name=player_name)
 
 #=================================================================================
-@app.route("/define_faction_enemies/", methods=['GET','POST'])
-@app.route("/rhubarb/define_faction_enemies/", methods=['GET','POST'])
+@app.route("/delete_faction_enemies/", methods=['GET','POST'])
+@app.route("/rhubarb/delete_faction_enemies/", methods=['GET','POST'])
 @login_required
-def define_faction_enemies():
+def delete_faction_enemies():
     form = DeleteEnemyForm()
     rodb = read_sqlite.Rodb()
     faction_sum = rodb.get_faction_for_player(current_user.username)
@@ -1289,15 +1289,50 @@ def define_faction_enemies():
             app.logger.info('DeleteEnemyForm fails validation')
             return render_template('message.html', title='delete enemy', message='DeleteEnemyForm failed validation: ' + str(request.form),  form=form , logged_in=True)
 
-        wantenemy = Enemy.query.filter_by(tornid = de_id).filter_by(f_id = faction_sum['fid']).first()
-        if wantenemy:
-            db.session.delete(wantenemy)
-            db.session.commit()
-        return redirect('/rhubarb/enemy_watch')
+        if de_id:
+            wantenemy = Enemy.query.filter_by(tornid = de_id).filter_by(f_id = faction_sum['fid']).first()
+            if wantenemy:
+                db.session.delete(wantenemy)
+                db.session.commit()
+            return redirect('/rhubarb/enemy_watch')
     # - - - - - - -  POST section
 
+    return render_template('delete_faction_enemies.html', title='Enemies', form=form, f_id=f_id)
+#=================================================================================
+@app.route("/add_faction_enemies/", methods=['GET','POST'])
+@app.route("/rhubarb/add_faction_enemies/", methods=['GET','POST'])
+@login_required
+def add_faction_enemies():
+    form = AddEnemyForm()
+    rodb = read_sqlite.Rodb()
+    faction_sum = rodb.get_faction_for_player(current_user.username)
+    f_id = int(faction_sum['fid'])
+    is_leader = bool_leader(int(current_user.username), faction_sum['fid'])
 
-    return render_template('define_faction_enemies.html', title='Enemies', form=form, f_id=f_id)
+    if not is_leader:
+       return redirect('/rhubarb/home') 
+
+    # - - - - - - -  POST section
+    if request.method == 'POST':
+        if form.validate_on_submit():
+            try:
+                add_id = request.form['add_id']
+            except:
+                app.logger.info('error involving AddEnemyForm')
+                return render_template('message.html', title='add enemy', message='AddEnemyForm exception reading input', logged_in=True)
+        else:
+            app.logger.info('AddEnemyForm fails validation')
+            return render_template('message.html', title='add enemy', message='AddEnemyForm failed validation: ' + str(request.form),  form=form , logged_in=True)
+
+        if add_id:
+            # XXX does not obtain username (fix up in another program) or check whether already in table
+            new_enemy = Enemy (tornid = add_id,  f_id = faction_sum['fid'], username = '?')
+            db.session.add(new_enemy)
+            db.session.commit()
+            return redirect('/rhubarb/enemy_watch')
+    # - - - - - - -  POST section
+
+    return render_template('add_faction_enemies.html', title='Enemies', form=form, f_id=f_id)
 #=================================================================================
 @app.route("/define_timerange/<t_to_t>", methods=['GET','POST'])
 @app.route("/rhubarb/define_timerange/<t_to_t>", methods=['GET','POST'])

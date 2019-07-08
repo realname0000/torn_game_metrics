@@ -155,8 +155,6 @@ class Rodb:
                 faction_sum['leader'] = row[0]
                 faction_sum['coleader'] = row[1]
 
-            faction_sum['leader'] = 1338804 # XXX XXX XXX do not allow this into prod
-
             self.c.execute("""select name from namelevel where player_id=?""", (faction_sum['leader'],))
             for row in self.c:
                 faction_sum['leadername'] = row[0]
@@ -328,7 +326,16 @@ class Rodb:
                     self.c.execute("""select name from namelevel where player_id=?""", (pid,))
                     for row in self.c:
                         new_participants[pid] = row[0]
-                this_crime[3]  = new_participants
+                # alphabetical by name
+                alpha_participants = {}
+                low = [(k, new_participants[k].lower()) for k in new_participants]
+                pig = {}
+                for tu in low:
+                    pig[tu[0]] = tu[1]
+                s = [(k, new_participants[k]) for k in sorted(pig, key=pig.get)]
+                for tu in s:
+                    alpha_participants[tu[0]] = tu[1]
+                this_crime[3] = alpha_participants
                 octable.append(this_crime)
             return octable, None
 
@@ -429,7 +436,7 @@ class Rodb:
 
         # PSTATS
         # player stats may or may not be available - it needs that player's API key
-        stats = {'nerve':'?', 'jail':'?', 'bust':'?', 'failbust':'?', 'hosp':'?', 'OD':'?', 'xanax':'?'}
+        stats = {'nerve':'?', 'jail':'?', 'bust':'?', 'failbust':'?', 'hosp':'?', 'OD':'?', 'xanax':'?', '30-day-xanax':'?'}
         stat_num = None
         nerve_details = None
         drug_details = None
@@ -454,6 +461,12 @@ class Rodb:
         if drug_details and drug_details[1]:
             got_drug_bool = True
             stats['xanax'] = drug_details[1]
+
+        if got_drug_bool:
+            self.c.execute("""select xantaken from drugs where player_id=? and et<? order by et desc limit 1""", (p_id,page_time - 2592000,))
+            for row in self.c:
+                stats['30-day-xanax'] = stats['xanax'] - row[0]
+
 
         # IDLE TIME
         self.c.execute("""select et,total from playercrimes where player_id=? order by et""", (p_id,))

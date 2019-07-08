@@ -14,7 +14,7 @@ player_crime_timestep = 21600
 faction_basic_timestep = 21600
 level_timestep = 86400
 
-re_named = re.compile('^<a href *= *"http://www.torn.com/profiles.php.XID=(\d+)">([()\w-]+)</a> (\w+) <a href = "http://www.torn.com/profiles.php.XID=(\d+)">([()\w-]+)<.a>([\w, +().-]*)$')
+re_named = re.compile('^<a href *= *"http://www.torn.com/profiles.php.XID=(\d+)">([()=\w-]+)</a> (\w+) <a href = "http://www.torn.com/profiles.php.XID=(\d+)"> *([()=\w-]+)<.a>([\w, +().-]*)$')
 re_someone = re.compile('^Someone (\w+) <a href *= *"http://www.torn.com/profiles.php.XID=(\d+)">([\w-]+)<.a>([\w, +().-]*)$')
 re_faction_used = re.compile('^<a href *= *"http://www.torn.com/profiles.php.XID=(\d+)">[()\w-]+</a> (used|filled) one of the faction.s (.*) items\.$')
 re_faction_energy = re.compile('^<a href *= *"?http://www.torn.com/profiles.php.XID=(\d+)"?>[()\w-]+</a> used 25 of the faction.s points to refill their energy\.$')
@@ -130,7 +130,7 @@ def get_faction(web, f_id, oc_interval):
             for row in c:
                 table_has=row[0]
             if not table_has:
-                c.execute("""insert into factiondisplay values(?,?, ?,?)""", (t, f_id, faction_name, None))
+                c.execute("""insert into factiondisplay(et,f_id,f_name,f_web) values(?,?, ?,?)""", (t, f_id, faction_name, None))
             if table_has != faction_name:
                 c.execute("""update factiondisplay set f_name=? where f_id=?""", (faction_name, f_id,))
                 c.execute("""update factiondisplay set et=? where f_id=?""", (t, f_id,))
@@ -540,6 +540,17 @@ def oc_count_per_player():
         for row in c:
             numcrimes = row[0]
         c.execute("""insert into playeroc values(?,?)""", (p, numcrimes,))
+    conn.commit()
+
+def refresh_faction_membership():
+    p2f = {}
+    c.execute("""select player_id,faction_id from playerwatch""")
+    for row in c:
+        p2f[row[0]] = row[1]
+    for p in p2f.keys():
+        if p2f[p] > 0:
+            c.execute("""replace into who_in_what(player_id,faction_id) values(?, ?)""", (p,p2f[p],) )
+    conn.commit()
 
 
 ###################################################################################################
@@ -655,6 +666,7 @@ for p in p_todo:
 
 oc_count_per_player()
 refresh_namelevel(web)
+refresh_faction_membership()
 clean_data()
 expire_old_data()
 

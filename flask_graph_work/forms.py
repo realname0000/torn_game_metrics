@@ -11,7 +11,7 @@ class RegisterForm(FlaskForm):
     username = StringField('username', validators = [DataRequired()])
     password = PasswordField('password', validators = [DataRequired()])
     checkbox = BooleanField('click for yes')
-    submit = SubmitField('Logi In')
+    submit = SubmitField('Log In')
 
 class PaymentForm(FlaskForm):
     pass # this is all in the template
@@ -49,7 +49,11 @@ class EnemyForm(FlaskForm):
 
 class DeleteEnemyForm(FlaskForm):
     de_id = SelectField('de_id', validators=[DataRequired()], id = 'select_enemy', coerce=int)
-    submit = SubmitField('Delete')
+    submit_delete = SubmitField('Delete')
+
+class AddEnemyForm(FlaskForm):
+    add_id = StringField('tornid')
+    submit_add = SubmitField('Add')
 
 class TimeForm(FlaskForm):
     pass
