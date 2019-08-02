@@ -61,9 +61,11 @@ class Rodb:
                    """ playerwatch.faction_id=?  and combat_events.outcome like '%-%.%' and combat_events.et > ? order by combat_events.et""", (fid,recent,))
         for row in self.c:
             outcome = row[-1]
-            q=outcome.rstrip(')')
-            w=q.lstrip(' (')
-            num=float(w)
+            # replace non-numeric chars from string before converting to float
+            q = outcome.rstrip(')')
+            w = q.lstrip(' (')
+            e = w.replace(',', '')
+            num=float(e)
             if num <= -40:  ## chain hit 250 by enemy
                 combat = list(row)
                 combat[0] = time.strftime("%Y-%m-%d %H:%M", time.gmtime(row[0]))
