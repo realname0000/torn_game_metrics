@@ -524,10 +524,32 @@ if not plan_deletion:
 conn2 = sqlite3.connect('/var/torn/torn_db')
 c2 = conn2.cursor()
 conn2.commit()
-for pid in watch.keys():
-    if pid in p_already:
+
+fnamepre = None
+c2.execute("""select fnamepre from admin""")
+for row in c2:
+    fnamepre = row[0]
+
+pid2name = {}  # used while processing each player
+for p_id in watch.keys():
+    if p_id in p_already:
         continue
-    print("player with no faction:", pid)
-    # c2.execute("""delete from playerwatch where player_id = ?""", (pid,))
+    print("player with no faction:", p_id)
+
+    c2.execute("""select playerwatch.player_id,namelevel.name from playerwatch,namelevel where playerwatch.player_id=namelevel.player_id and playerwatch.player_id=?""", (p_id,))
+    for p in c2:
+        pid2name[str(p[0])] = p[1]
+
+    # picture file graphs
+    player_dname = hashlib.sha1(bytes('player-directory-for' + str(p_id) + fnamepre + str(var_interval_no), 'utf-8')).hexdigest()
+    longdname = docroot + 'player/' + player_dname
+    try:
+        mtime = os.stat(longdname).st_mtime
+    except:
+        os.mkdir(longdname)
+    graph_action=player_graphs.Draw_graph(docroot, c2, var_interval_no, player_dname)
+    graph_urls = graph_action.player(pid2name, p_id)
+
+    # c2.execute("""delete from playerwatch where player_id = ?""", (p_id,))
 conn2.commit()
 c2.close()
