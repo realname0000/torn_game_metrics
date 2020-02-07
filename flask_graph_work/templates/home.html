@@ -25,6 +25,10 @@ settings (above) is where you can do this.
 </p>
 <a href="/rhubarb/faction_ov">Faction overview</a>
 <p>
+{% for oc_payment_due in payment_due %}
+<br/><strong>OC payment appears due for: {{ oc_payment_due }}</strong>
+{% endfor %}
+<p>
 {% if faction_sum['respect_graph_url'] %}
 <img src="/{{ faction_sum['respect_graph_url'] }}" alt="timeseries graph of faction respect"></a>
 {% endif %}
@@ -82,8 +86,11 @@ settings (above) is where you can do this.
 	<a href="{{ player.events }}">OC history</a>
          <br/>
          {% for key in player.attacklinks.keys() %}
-	 <a href="/rhubarb/attack/{{key}}">{{player.attacklinks[key]}}</a></br>
+	 <a href="/rhubarb/faction_attack/{{key}}">{{player.attacklinks[key]}}</a></br>
          {% endfor %}
+         {% if player.chain_bonus_count %}
+	 <a href="/rhubarb/chain_bonus/{{player.chain_bonus_link}}">chain bonus x{{player.chain_bonus_count}}</a></br>
+         {% endif %}
 	</td>
 </tr>
 </table>

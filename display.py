@@ -10,6 +10,7 @@ import player_graphs
 import faction_graphs
 import sqlite3
 import time
+import shutil
 
 
 def seconds_text(s):
@@ -21,7 +22,7 @@ def seconds_text(s):
         return str(int(s/3600)) + 'h'
 
 
-def prepare_player_stats(p_id, pid2name, page_time, show_debug, fnamepre, var_interval_no, keeping_player, docroot, my_oc_cf, appleorange):
+def prepare_player_stats(p_id, pid2name, f_id, page_time, show_debug, fnamepre, var_interval_no, keeping_player, docroot, my_oc_cf, appleorange):
     blob = []
     old_player_dname = hashlib.sha1(bytes('player-directory-for' + str(p_id) + fnamepre + str(var_interval_no-1), 'utf-8')).hexdigest()
     player_dname = hashlib.sha1(bytes('player-directory-for' + str(p_id) + fnamepre + str(var_interval_no), 'utf-8')).hexdigest()
@@ -75,13 +76,13 @@ def prepare_player_stats(p_id, pid2name, page_time, show_debug, fnamepre, var_in
         crimes_planned += oc_cf_link
 
     # attacknews
-    flask_parm = ( str(p_id) + 'attack' + str(int(time.time())) ).encode("utf-8")
+    flask_parm = (str(f_id) + '-' + str(p_id) + 'attack' + str(int(time.time())) ).encode("utf-8")
     hmac_hex = hmac.new(hmac_key, flask_parm, digestmod=hashlib.sha1).hexdigest()
-    crimes_planned += '<br/><a href="/rhubarb/attack/' + str(flask_parm)[2:-1] + '-' +  hmac_hex + '">attack</a>'
+    crimes_planned += '<br/><a href="/rhubarb/faction_attack/' + str(flask_parm)[2:-1] + '-' +  hmac_hex + '">attack</a>'
     #
-    flask_parm = ( str(p_id) + 'defend' + str(int(time.time())) ).encode("utf-8")
+    flask_parm = (str(f_id) + '-' +  str(p_id) + 'defend' + str(int(time.time())) ).encode("utf-8")
     hmac_hex = hmac.new(hmac_key, flask_parm, digestmod=hashlib.sha1).hexdigest()
-    crimes_planned += '<br/><a href="/rhubarb/attack/' + str(flask_parm)[2:-1] + '-' +  hmac_hex + '">defend</a>'
+    crimes_planned += '<br/><a href="/rhubarb/faction_attack/' + str(flask_parm)[2:-1] + '-' +  hmac_hex + '">defend</a>'
 
 
     # Calc OC rations
@@ -238,7 +239,10 @@ def prepare_player_stats(p_id, pid2name, page_time, show_debug, fnamepre, var_in
     print("</body></html>", file=pg_index)
     pg_index.close()
     player_index = hashlib.sha1(bytes('player-index' + str(p_id) + fnamepre + str(var_interval_no), 'utf-8')).hexdigest()
-    os.rename("/torntmp/begin_graphs.html", docroot + "player/" + player_dname + "/" + player_index + ".html")
+    try:
+        os.rename("/torntmp/begin_graphs.html", docroot + "player/" + player_dname + "/" + player_index + ".html")
+    except:
+        print("Missing file could not be renamed for player", str(p_id))
     col1_answer.append("/player/" + player_dname + "/" + player_index + ".html")
 
     blob.append(col1_answer)
@@ -280,7 +284,7 @@ def prepare_faction_stats(f_id, fnamepre, var_interval_no, keeping_faction, keep
             elif pair[5] == p:
                 flipped = [pair[0], pair[1], pair[3], pair[2], pair[5], pair[4]]
                 my_oc_cf.append(flipped)
-        f_data.append(prepare_player_stats(p, pid2name, page_time, show_debug, fnamepre, var_interval_no, keeping_player, docroot, my_oc_cf, appleorange))
+        f_data.append(prepare_player_stats(p, pid2name, f_id, page_time, show_debug, fnamepre, var_interval_no, keeping_player, docroot, my_oc_cf, appleorange))
         n_player += 1
     print(n_player, "players processed")
 
@@ -447,6 +451,15 @@ def prepare_faction_stats(f_id, fnamepre, var_interval_no, keeping_faction, keep
     print('<p/><hr>', file=intro)
     print("</body></html>", file=intro)
     intro.close()
+
+    # This is an extemsion for the TWOF feature.
+    # This allows two faction to access each other's data using
+    # a web server passwd rather than flask login.
+    if ((faction_web == 'ELITE') or (faction_web == 'FightClub')):
+        # copy
+        shutil.copyfile("/torntmp/index.html", docroot + "twof/" + faction_web +  "/tmpindex.html")
+        os.rename(docroot + "twof/" + faction_web +  "/tmpindex.html",  docroot + "twof/" + faction_web +  "/index.html")
+
     os.rename("/torntmp/index.html", docroot + "intro/" + faction_web +  "/index.html")
 
 ###################################################################################################

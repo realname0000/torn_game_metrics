@@ -1,0 +1,19 @@
+<html>
+<head>
+<title>Chain Bonuses</title>
+</head>
+<body>
+
+<a href="/rhubarb/home">home</a>
+
+<h2>Bonuses >= 100 for {{ player.name }}[{{ player.pid }}] in faction {{ faction_id }}</h2>
+    <p>
+    Events in the last hour are never shown to make these records useless for chain retaliation.
+    <p>
+    <ol>
+    {% for item in player.chain_bonus_list %}
+    <li>At date {{ item[0] }} {{ item[1] }}[{{ item[2] }}]  {{ item[3] }}  {{ item[4] }}[{{ item[5] }}] gaining  {{ item[6] }} respect </li>
+    {% endfor %}
+    </ol>
+</body>
+</html>

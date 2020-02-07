@@ -20,7 +20,9 @@ import password
 import challenge
 
 re.numeric = re.compile('^[0-9]+$')
-token = re.compile('^([-\d]+)([a-z]+)(\d+)-([0-9a-f]+)$') # used for graphs and combat events
+token = re.compile('^([-\d]+)([a-z]+)(\d+)-([0-9a-f]+)$') # used for graphs
+combat_token = re.compile('^([-\d]+)-([-\d]+)([a-z]+)(\d+)-([0-9a-f]+)$') # used for combat events
+bonus_token = re.compile('^([-\d]+)-([-\d]+)bonus(\d+)-([0-9a-f]+)$') # used for chain bonus record
 armory_token = re.compile('^([-\d]+)-(\d+)-([0-9a-f]+)$')
 enemy_token = re.compile('^([-\d]+)-(\d+)-(\d+)-([0-9a-f]+)$')
 target_token = re.compile('^([-\d]+)-(\d+)-(\d+)-(\d+)-([0-9a-f]+)$')
@@ -39,7 +41,7 @@ app = Flask(__name__)
 
 app.config.from_pyfile('config.py')
 
-loghandler = logging.handlers.RotatingFileHandler('/home/peabrain/logs/tu0023.log', maxBytes=1024 * 1024, backupCount=10)
+loghandler = logging.handlers.RotatingFileHandler('/home/peabrain/logs/tu0028.log', maxBytes=1024 * 1024, backupCount=10)
 loghandler.setLevel(logging.INFO)
 app.logger.setLevel(logging.INFO)
 app.logger.addHandler(loghandler)
@@ -711,6 +713,8 @@ def home():
     faction_sum = rodb.get_faction_for_player(current_user.username)
     player = rodb.get_player_data(current_user.username)
     is_leader = bool_leader(int(current_user.username), faction_sum['fid'])
+    f_id = faction_sum['fid']
+    p_id = int(current_user.username)
 
     # what do we know about this player being a leader?
     maybe_leader = Extra_leaders.query.filter_by(faction_id = int(faction_sum['fid'])).filter_by(player_id = int(current_user.username)).all()
@@ -729,7 +733,13 @@ def home():
     else:
         leader_record  = [any_data, False, 'never', '']
 
-    return render_template('home.html', title='home', u=current_user.username, player=player, faction_sum=faction_sum, is_leader=is_leader, leader_record=leader_record)
+    payment_due = []
+    if is_leader:
+        payment_due = rodb.oc_payment_check(faction_sum['fid'])
+
+    return render_template('home.html', title='home', u=current_user.username,
+            player=player, faction_sum=faction_sum, is_leader=is_leader,
+            leader_record=leader_record, payment_due=payment_due)
 
 #=================================================================================
 
@@ -1008,9 +1018,68 @@ def armorynews(player_t):
     
     return render_template("stuff_used.html", player_name=player['name'], stuff_used=stuff_used)
 #=================================================================================
+@app.route("/chain_bonus/<faction_player_t>", methods=['GET'])
+@app.route("/rhubarb/chain_bonus/<faction_player_t>", methods=['GET'])
+def chain_bonus(faction_player_t):
+    f_id = None
+    p_id = None
+    timestamp = None
+    given_hmac = None
+    right_now = int(time.time())
 
-@app.route("/attack/<player_role_t>", methods=['GET'])
-def combat_events(player_role_t):
+    logged_in = False
+    try:
+        u = current_user.username
+        logged_in = True
+    except:
+        pass
+
+    re_object = bonus_token.match(faction_player_t)
+    if re_object:
+        f_id = re_object.group(1)
+        p_id = re_object.group(2)
+        timestamp = re_object.group(3)
+        given_hmac = re_object.group(4)
+    else:
+        app.logger.info('in chain_bonus RE did not match URL')
+        return render_template("bad_graph_request.html")
+
+    # calc correct hmac
+    display_selection = (str(f_id) + '-' +  str(p_id) + 'bonus' + str(timestamp) ).encode("utf-8")
+    hmac_hex = hmac.new(hmac_key, display_selection, digestmod=hashlib.sha1).hexdigest()
+
+    # test for correct hmac
+    if not hmac.compare_digest(hmac_hex, given_hmac):
+        return render_template('message.html', message='link has been altered; cannot use it', logged_in=logged_in)
+    # test for acceptable timestamp
+    if ((int(timestamp) + 86400) < right_now):
+        return render_template('message.html', message='too old; link has expired', logged_in=logged_in)
+
+    # Need to show details of the player we are enquring about, which might not be the current player viewing it.
+    tbefore = int(time.time()) - 3600 # an hour ago
+    parm = (int(f_id), int(p_id), tbefore,)
+    conn = sqlite3.connect('file:/var/torn/readonly_db?mode=ro', uri=True)
+    c = conn.cursor()
+    bonus_list = []
+    c.execute("select et,att_name,att_id,verb,def_name,def_id,respect from long_term_bonus where fid=? and att_id=? and et<? order by et desc", parm)
+    for row in c:
+        record = list(row)
+        record[0] = (time.strftime("%Y-%m-%d", time.gmtime(record[0])))
+        bonus_list.append(record)
+    c.execute("select name from namelevel where player_id=?", (int(p_id),))
+    name = '?'
+    for row in c:
+        name = row[0]
+    c.close()
+    conn.close()
+
+    return render_template("chain_bonus.html", faction_id=f_id, player={'name':name, 'pid':p_id, 'chain_bonus_list':bonus_list})
+
+#=================================================================================
+@app.route("/faction_attack/<faction_player_role_t>", methods=['GET'])
+@app.route("/rhubarb/faction_attack/<faction_player_role_t>", methods=['GET'])
+def combat_events(faction_player_role_t):
+    f_id = None
     p_id = None
     role = None
     timestamp = None
@@ -1026,18 +1095,19 @@ def combat_events(player_role_t):
         pass
 
     # what page is this meant to produce, attack or defend?
-    re_object = token.match(player_role_t)
+    re_object = combat_token.match(faction_player_role_t)
     if re_object:
-        p_id = re_object.group(1)
-        role = re_object.group(2)
-        timestamp = re_object.group(3)
-        given_hmac =  re_object.group(4)
+        f_id = re_object.group(1)
+        p_id = re_object.group(2)
+        role = re_object.group(3)
+        timestamp = re_object.group(4)
+        given_hmac = re_object.group(5)
     else:
         app.logger.info('in combat_events RE did not match URL')
         return render_template("bad_graph_request.html")
 
     # calc correct hmac
-    display_selection = ( str(p_id) + role + str(timestamp) ).encode("utf-8")
+    display_selection = (str(f_id) + '-' +  str(p_id) + role + str(timestamp) ).encode("utf-8")
     hmac_hex = hmac.new(hmac_key, display_selection, digestmod=hashlib.sha1).hexdigest()
 
     # test for correct hmac
@@ -1048,13 +1118,13 @@ def combat_events(player_role_t):
         return render_template('message.html', message='too old; link has expired', logged_in=logged_in)
 
     tbefore = int(time.time()) - 3600 # an hour ago
-    parm = (int(p_id), tbefore,)
+    parm = (int(f_id), int(p_id), tbefore,)
     conn = sqlite3.connect('file:/var/torn/readonly_db?mode=ro', uri=True)
     c = conn.cursor()
     if 'attack' == role:
-        c.execute("select et,att_name,att_id,verb,def_name,def_id,outcome from combat_events where att_id=? and et<? order by et desc", parm)
+        c.execute("select et,att_name,att_id,verb,def_name,def_id,outcome from combat_events where fid=? and att_id=? and et<? order by et desc", parm)
     elif 'defend' == role:
-        c.execute("select et,att_name,att_id,verb,def_name,def_id,outcome from combat_events where def_id=? and et<? order by et desc", parm)
+        c.execute("select et,att_name,att_id,verb,def_name,def_id,outcome from combat_events where fid=? and  def_id=? and et<? order by et desc", parm)
     else:
         c.close()
         conn.close()
@@ -1323,6 +1393,12 @@ def add_faction_enemies():
         else:
             app.logger.info('AddEnemyForm fails validation')
             return render_template('message.html', title='add enemy', message='AddEnemyForm failed validation: ' + str(request.form),  form=form , logged_in=True)
+
+        # XXX form validation could do better
+        try:
+            actual_integer = int(add_id)
+        except ValueError:
+            return render_template('message.html', title='add enemy', message='AddEnemyForm accepts only an integer',  form=form , logged_in=True)
 
         if add_id:
             # XXX does not obtain username (fix up in another program) or check whether already in table

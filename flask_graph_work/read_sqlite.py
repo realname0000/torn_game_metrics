@@ -65,7 +65,7 @@ class Rodb:
             q = outcome.rstrip(')')
             w = q.lstrip(' (')
             e = w.replace(',', '')
-            num=float(e)
+            num = float(e)
             if num <= -40:  ## chain hit 250 by enemy
                 combat = list(row)
                 combat[0] = time.strftime("%Y-%m-%d %H:%M", time.gmtime(row[0]))
@@ -100,6 +100,9 @@ class Rodb:
     def get_friendly_fire(self, fid):
 
         fid = int(fid)
+        if -1 == fid:
+            return [0,[]] # -1 is a special value meaning no faction
+
         start = int(time.time())-432000 # last 5 days till now
         fire = []
 
@@ -280,6 +283,21 @@ class Rodb:
             policy_dict[int(row[1])] = row
         return policy_dict
 #=================================================================================
+    def oc_payment_check(self, f_id):
+        crime_types = []
+        self.c.execute("""select crime_id from payment_percent where faction_id=? and percent>0""", (f_id,))
+        for row in self.c:
+            crime_types.append(row[0])
+        found = [] # empty
+        for ct in crime_types:
+            self.c.execute("""select faction_id,crime_id,money_gain,paid_at,crime_name from factionoc where initiated>0 and success>0 and paid_at=0 and faction_id=? and crime_id=?""", (f_id,ct,))
+            for row in self.c:
+                money_gain = int(row[2])
+                if money_gain >0:
+                    if not row[4] in found:
+                        found.append(row[4])
+        return found
+#=================================================================================
     def get_oc(self, t_id, cn, longsearch, cached_payments):
         """return an octable structure of past OC and possibly an item of future OC"""
 
@@ -389,6 +407,12 @@ class Rodb:
 
         p_id = int(u)
         page_time = int(time.time())
+
+        # fid from pid
+        fid = 0
+        self.c.execute("""select faction_id from playerwatch where player_id=?""", (p_id,))
+        for row in self.c:
+            f_id = row[0]
 
         # name and level
         name = None
@@ -530,11 +554,11 @@ class Rodb:
 
         # attacknews
         attacklinks = {}
-        flask_parm = ( str(p_id) + 'attack' + str(page_time) ).encode("utf-8")
+        flask_parm = (str(f_id) + '-' +  str(p_id) + 'attack' + str(page_time) ).encode("utf-8")
         hmac_hex = hmac.new(self.hmac_key, flask_parm, digestmod=hashlib.sha1).hexdigest()
         attacklinks[str(flask_parm)[2:-1] + '-' +  hmac_hex]  = 'attack'
         #
-        flask_parm = ( str(p_id) + 'defend' + str(page_time) ).encode("utf-8")
+        flask_parm = (str(f_id) + '-' +  str(p_id) + 'defend' + str(page_time) ).encode("utf-8")
         hmac_hex = hmac.new(self.hmac_key, flask_parm, digestmod=hashlib.sha1).hexdigest()
         attacklinks[str(flask_parm)[2:-1] + '-' +  hmac_hex]  = 'defend'
 
@@ -549,6 +573,18 @@ class Rodb:
             graph_selection = ( str(p_id) + 'drug' + str(page_time)).encode("utf-8")
             hmac_hex = hmac.new(self.hmac_key, graph_selection, digestmod=hashlib.sha1).hexdigest()
             js_graphs.append([str(graph_selection)[2:-1] + '-' +  hmac_hex,  'detailed drug graph'])
+
+        # Chain bonus details
+        chain_bonus_count = 0
+        chain_bonus_link = None
+        parm = (int(f_id), int(p_id),)
+        self.c.execute("select num from bonus_counter where fid=? and att_id=?", parm)
+        for row in self.c:
+           chain_bonus_count = row[0]
+        if chain_bonus_count: # no need to make a link to empty data
+            display_selection = (str(f_id) + '-' +  str(p_id) + 'bonus' + str(page_time) ).encode("utf-8")
+            hmac_hex = hmac.new(self.hmac_key, display_selection, digestmod=hashlib.sha1).hexdigest()
+            chain_bonus_link =  str(f_id) + '-' + str(p_id) + 'bonus' + str(page_time) + '-' + hmac_hex
 
         img_graphs = []
         var_interval_no = int(time.time()/self.page_lifetime)
@@ -575,7 +611,9 @@ class Rodb:
                  'crime_recency':crime_recency,  'most_days_idle':most_days_idle,
                  'stats':stats, 'age_of_data':age_of_data, 'oc':all_my_oc, 'events':events,
                  'attacklinks':attacklinks, 'js_graphs':js_graphs, 'img_graphs':img_graphs,
-                 'got_drug_bool':got_drug_bool, 'oc_calc':oc_calc}
+                 'got_drug_bool':got_drug_bool, 'oc_calc':oc_calc,
+                 'chain_bonus_count':chain_bonus_count,
+                 'chain_bonus_link':chain_bonus_link}
 
         return player
 #=================================================================================

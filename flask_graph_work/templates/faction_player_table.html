@@ -63,8 +63,11 @@ You are recognised as a leader so the player table will be shown.
 	  <a href="{{ e }}">player OC history</\><br/>
          {% endfor %}
          {% for key in pt[pid].attacklinks.keys() %}
-          <a href="/rhubarb/attack/{{key}}">{{pt[pid].attacklinks[key]}}</a></br>
+          <a href="/rhubarb/faction_attack/{{key}}">{{pt[pid].attacklinks[key]}}</a></br>
          {% endfor %}
+	 {% if pt[pid].chain_bonus_count %}
+         <a href="/rhubarb/chain_bonus/{{pt[pid].chain_bonus_link}}">chain bonus x{{pt[pid].chain_bonus_count}}</a></br>
+         {% endif %}
         </td>
         <td>
          {% for g in pt[pid].js_graphs %}

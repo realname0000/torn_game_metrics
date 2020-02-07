@@ -245,11 +245,15 @@ def get_faction(web, f_id, oc_interval):
                 else:
                     cx = oc[crimeplan]
                     # change from a structure into a string
-                    part = ','.join(cx["participants"].keys())
+                    part_list = []
+                    for x in cx["participants"]:
+                        for xx in x:
+                            part_list.append(str(xx))
+                    part = ','.join(part_list)
                     c.execute("""insert into factionoc values (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?,?,?)""",
                     (t, player_id_api, f_id, crimeplan,
-                     cx["crime_id"], cx["crime_name"], part, cx["time_started"], cx["time_completed"],
-                     cx["initiated"], cx["success"], cx["money_gain"], cx["respect_gain"], 0, cx["time_ready"],0,0,))
+                    cx["crime_id"], cx["crime_name"], part, cx["time_started"], cx["time_completed"],
+                    cx["initiated"], cx["success"], cx["money_gain"], cx["respect_gain"], 0, cx["time_ready"],0,0,))
                     print("Storing new OC ", crimeplan)
             #
             c.execute("""update factionwatch set latest_oc=? where faction_id=?""", (t, f_id,))
@@ -494,8 +498,15 @@ def get_readiness(web, p_id, interval):
             printf("Readiness: unexpected string value", q1_data)
             return "Fail"
         frog=dehtml.Dehtml()
-        q1_data['status'][0] = frog.html_clean(q1_data['status'][0])
-        q1_data['status'][1] = frog.html_clean(q1_data['status'][1])
+        q1_data['status']['state'] = frog.html_clean(q1_data['status']['state'])
+        q1_data['status']['description'] = frog.html_clean(q1_data['status']['description'])
+        ## faction should be included ... if it is update the playerwatch table
+        f_id= None
+        try:
+            f_id = q1_data['faction']['faction_id']
+            print("XXXX (plan to update faction record)  Player %d seen in faction %d" % (p_id, f_id))
+        except:
+            pass
     else:
         return "Fail"
     # and find nerve if possible
@@ -505,7 +516,7 @@ def get_readiness(web, p_id, interval):
         cur_nerve = result[1]['nerve']['current']
         max_nerve = result[1]['nerve']['maximum']
     #
-    c.execute("""insert into readiness values (?, ?, ?, ?, ?, ?)""", (et, p_id, cur_nerve, max_nerve, q1_data['status'][0], q1_data['status'][1],))
+    c.execute("""insert into readiness values (?, ?, ?, ?, ?, ?)""", (et, p_id, cur_nerve, max_nerve, q1_data['status']['state'], q1_data['status']['description'],))
     conn.commit()
 
 
@@ -552,6 +563,38 @@ def refresh_faction_membership():
             c.execute("""replace into who_in_what(player_id,faction_id) values(?, ?)""", (p,p2f[p],) )
     conn.commit()
 
+def large_chain_bonus():
+    bonus = []
+    need_to_update_count = False
+    c.execute("""select fid,evid,et,att_name,att_id,verb,def_name,def_id,outcome from combat_events where outcome like ? and et > ?""", ('%+___%.00%',int(t_start_finegrain)-86400,))
+    for row in c:
+        bonus.append(row)
+        print(row)
+    # and add to long_term_bonus if not already present
+    for br in bonus:
+        # Is it already recorded?
+        c.execute("""select fid,evid,et from long_term_bonus where fid = ? and evid = ? and et = ?""", (br[0], br[1], br[2],))
+        seen = False
+        for row in c:
+            seen = True
+        if not seen:
+            newbr=list(br)
+            respect = newbr[8].strip('() ')
+            respect = respect.lstrip('+')
+            respect = respect.replace(',', '')
+            newbr.append(float(respect))
+            print("Insert into long_term_bonus", br)
+            c.execute("""insert into long_term_bonus values(?,?,?,?,  ?,?,?,?, ?,?)""", tuple(newbr))
+            need_to_update_count = True
+    conn.commit()
+    if need_to_update_count:
+        c.execute("""select fid,att_id,count(evid) from long_term_bonus group by fid,att_id""")
+        bonus_count = []
+        for row in c:
+            bonus_count.append(row)
+        for x in bonus_count:
+                c.execute("""replace into bonus_counter values(?,?,?)""", tuple(x))
+        conn.commit()
 
 ###################################################################################################
 
@@ -662,11 +705,12 @@ for p in p_todo:
     if rc == "TOO RECENT":
         continue
     print("return from get_player(" + str(p) + ") is ", rc)
-    time.sleep(2)
+    #time.sleep(2)
 
 oc_count_per_player()
 refresh_namelevel(web)
 refresh_faction_membership()
+large_chain_bonus()
 clean_data()
 expire_old_data()
 
