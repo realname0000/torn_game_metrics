@@ -4,6 +4,7 @@ import psycopg2
 import sqlite3
 import time
 import web_api
+import sys
 
 # readonly postresql
 
@@ -47,7 +48,10 @@ for m in enemy_tornid:
     result = web.torn('user', m, 'basic')
     print(result)
     if len(result) > 1:
-        c2.execute("""replace into namelevel(et,name,level,player_id) values(?,?,?,?)""", (now, result[1]['name'], result[1]['level'], m,))
+        if ((type(result[1]) == type(9)) or (type(result[1]) == type('api disabled already'))):
+            print(result, file=sys.stderr)
+        else:
+            c2.execute("""replace into namelevel(et,name,level,player_id) values(?,?,?,?)""", (now, result[1]['name'], result[1]['level'], m,))
 
 # ===================
 
