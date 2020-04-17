@@ -27,6 +27,7 @@ esac
 ./process_web_api_changes.py > ../logs/A_${t}_1 2> ../logs/A_${t}_2
 
 ./harvest.py > ../logs/H_${t}_1 2> ../logs/H_${t}_2 
+
 #
 umask 077
 echo .backup /var/torn/readonly_db_tmp | sqlite3 /var/torn/torn_db
@@ -36,7 +37,7 @@ chmod go=r /var/torn/readonly_db_tmp
 mv -f /var/torn/readonly_db_tmp /var/torn/readonly_db
 #
 ./display.py > ../logs/D_${t}_1 2> ../logs/D_${t}_2
-for rm_empty in ../logs/[ADIHV]_${t}_2
+for rm_empty in ../logs/[ADIHNV]_${t}_2
 do
     [ -f $rm_empty -a ! -s $rm_empty ] && rm $rm_empty
 done

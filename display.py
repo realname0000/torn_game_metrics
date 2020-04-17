@@ -241,6 +241,7 @@ def prepare_player_stats(p_id, pid2name, f_id, page_time, show_debug, fnamepre, 
     player_index = hashlib.sha1(bytes('player-index' + str(p_id) + fnamepre + str(var_interval_no), 'utf-8')).hexdigest()
     try:
         os.rename("/torntmp/begin_graphs.html", docroot + "player/" + player_dname + "/" + player_index + ".html")
+        print(str(p_id), "player data written to", docroot + "player/" + player_dname + "/" + player_index + ".html")
     except:
         print("Missing file could not be renamed for player", str(p_id))
     col1_answer.append("/player/" + player_dname + "/" + player_index + ".html")
@@ -562,7 +563,6 @@ for p_id in watch.keys():
         os.mkdir(longdname)
     graph_action=player_graphs.Draw_graph(docroot, c2, var_interval_no, player_dname)
     graph_urls = graph_action.player(pid2name, p_id)
-
-    # c2.execute("""delete from playerwatch where player_id = ?""", (p_id,))
+    print(str(p_id), "player data written to", docroot + graph_urls[0])
 conn2.commit()
 c2.close()

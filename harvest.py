@@ -101,7 +101,12 @@ def get_faction(web, f_id, oc_interval):
                 c.execute("""update factiondisplay set coleader_id=? where f_id=?""", (colead,f_id,))
             #
             members=result[1]['members']
+            for m in members:
+                print("Found member", m)
+                c.execute("""replace into pid_wanted values(?,?)""", (m, t,))
+
             # Because I have not figured out "insert if not exists", "on conflict" kind of thing
+            # XXX I should be able to simplify this now.
             player_faction_already = {}
             c.execute("""SELECT player_id,faction_id FROM playerwatch""")
             for row in c:

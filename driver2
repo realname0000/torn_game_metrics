@@ -20,10 +20,15 @@ case "$s" in
 esac
 
 ./fake_faction_details.py > ../logs/F_${t}_1 2> ../logs/F_${t}_2
-for rm_empty in ../logs/F_${t}_2
+
+./maintain_namelevel.py > ../logs/M_${t}_1 2> ../logs/M_${t}_2
+
+./pid_wanted_by_postgres.py > ../logs/W_${t}_1 2> ../logs/W_${t}_2
+
+
+for rm_empty in ../logs/[FMW]_${t}_2
 do
     [ -f $rm_empty -a ! -s $rm_empty ] && rm $rm_empty
 done
-
 
 rm -f lock/$$
