@@ -64,8 +64,8 @@ c2.execute("""select player_id,wanted from pid_wanted""")
 for row in c2:
     if row[0] in playerwatch_only:
         playerwatch_only.pop(row[0])
-        # If the time is right this should be deleted from both tables
-        if ((et - row[1] ) > 6048400):
+        # If the time is right this should be deleted from both tables.
+        if ((et - row[1] ) > 604840):
             to_delete.append(row[0])
 
 print("plan to delete", to_delete)
