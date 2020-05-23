@@ -93,6 +93,9 @@ class Tornapi:
                 key_id = which
             else:
                 return ["EPARM need right apikey for bars or personalstats"]
+        elif ('chain' == how) or  ('chains' == how):
+            if 'faction' != what:
+                return ["EPARM what/how"]
         else:
             return ["EPARM how"]
 
@@ -180,6 +183,14 @@ class Tornapi:
             if ('armorynews' == how) or ('armorynewsfull' == how):
                 if 'armorynews' not in data:
                     print("Faction armorynews not found", data)
+                    return ['Bad data']
+            if 'chain' == how:
+                if 'chain' not in data:
+                    print("Faction chain not found", data)
+                    return ['Bad data']
+            if 'chains' == how:
+                if 'chains' not in data:
+                    print("Faction chains not found", data)
                     return ['Bad data']
 
         self.good_user_key[key_id] = 1

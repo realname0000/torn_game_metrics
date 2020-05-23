@@ -563,6 +563,9 @@ for p_id in watch.keys():
         os.mkdir(longdname)
     graph_action=player_graphs.Draw_graph(docroot, c2, var_interval_no, player_dname)
     graph_urls = graph_action.player(pid2name, p_id)
-    print(str(p_id), "player data written to", docroot + graph_urls[0])
+    try:
+        print(str(p_id), "player data written to", docroot + graph_urls[0])
+    except:
+        print(str(p_id), "player data written to ... NOT WRITTEN")
 conn2.commit()
 c2.close()

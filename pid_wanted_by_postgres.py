@@ -64,18 +64,18 @@ c2.execute("""select player_id,wanted from pid_wanted""")
 for row in c2:
     if row[0] in playerwatch_only:
         playerwatch_only.pop(row[0])
-        # If the time is right this should be deleted from both tables.
+        # If the time is right this should be deleted from both tables
         if ((et - row[1] ) > 604840):
             to_delete.append(row[0])
 
 print("plan to delete", to_delete)
 for pid in to_delete:
     c2.execute("""delete from pid_wanted where player_id = ?""", (pid,))
-    c2.execute("""delete from player_watch where player_id = ?""", (pid,))
+    c2.execute("""delete from playerwatch where player_id = ?""", (pid,))
 conn2.commit()
 
 for pid in playerwatch_only.keys():
-    print(pid, "only in player_watch but not pid_wanted")
+    print(pid, "only in playerwatch but not pid_wanted")
     c2.execute("""insert or ignore into pid_wanted values(?,?)""", (pid, etlessfive,))
 
 conn2.commit()
