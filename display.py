@@ -3,7 +3,6 @@
 import hashlib
 import hmac
 import keep_files
-import oc_cf_web
 import oc_history_to_text
 import os
 import player_graphs
@@ -22,7 +21,7 @@ def seconds_text(s):
         return str(int(s/3600)) + 'h'
 
 
-def prepare_player_stats(p_id, pid2name, f_id, page_time, show_debug, fnamepre, var_interval_no, keeping_player, docroot, my_oc_cf, appleorange):
+def prepare_player_stats(p_id, pid2name, f_id, page_time, show_debug, fnamepre, var_interval_no, keeping_player, docroot):
     blob = []
     old_player_dname = hashlib.sha1(bytes('player-directory-for' + str(p_id) + fnamepre + str(var_interval_no-1), 'utf-8')).hexdigest()
     player_dname = hashlib.sha1(bytes('player-directory-for' + str(p_id) + fnamepre + str(var_interval_no), 'utf-8')).hexdigest()
@@ -38,17 +37,6 @@ def prepare_player_stats(p_id, pid2name, f_id, page_time, show_debug, fnamepre, 
         mtime = os.stat(longdname).st_mtime
     except:
         os.mkdir(longdname)
-
-    # produce OC comparison for this player
-    oc_cf_link = None
-    if len(my_oc_cf):
-        retlist = appleorange.web(c, my_oc_cf, pid2name, player_dname, p_id, var_interval_no)
-        if show_debug:
-            print(retlist)
-        got_page = retlist[0]
-        if got_page:
-            # time parameter to help see whether a page has changed since you last loaded it in the browser
-            oc_cf_link = '<br/><a href="' + retlist[1] + '?t=' + str(retlist[2]) + '">OC comparison</a>'
 
     # produce OC list for this player
     linebreak = ''
@@ -71,9 +59,6 @@ def prepare_player_stats(p_id, pid2name, f_id, page_time, show_debug, fnamepre, 
             crimes_planned = 'failed to get page'
     else:
         crimes_planned = 'no OC to show'
-    #
-    if oc_cf_link:
-        crimes_planned += oc_cf_link
 
     # attacknews
     flask_parm = (str(f_id) + '-' + str(p_id) + 'attack' + str(int(time.time())) ).encode("utf-8")
@@ -253,15 +238,6 @@ def prepare_faction_stats(f_id, fnamepre, var_interval_no, keeping_faction, keep
     page_time = int(time.time())  # seconds
     print("faction data for ", f_id)
 
-    all_oc_cf = []  # f_id, crime_id, oc_plan_a, oc_plan_b, player_a, player_b
-    # Obtain the type of crime with a join as this is not in the compare table.
-    c.execute("""select distinct compare.f_id,factionoc.crime_id,compare.oc_a,compare.oc_b,compare.player_a,compare.player_b from compare,factionoc where f_id=? and factionoc.oc_plan_id=compare.oc_a""", (f_id,))
-    for row in c:
-        if row[3] < row [2]:
-            print("Crime order problem in compare ", row)
-            continue
-        all_oc_cf.append(row)
-
     pid2name = {}  # used while processing each player
     f_data = []
     c.execute("""select playerwatch.player_id,namelevel.name from playerwatch,namelevel where playerwatch.faction_id=? and playerwatch.player_id=namelevel.player_id""", (f_id,))
@@ -270,22 +246,12 @@ def prepare_faction_stats(f_id, fnamepre, var_interval_no, keeping_faction, keep
         player_todo.append(p[0])
         pid2name[str(p[0])] = p[1]
 
-    appleorange=oc_cf_web.Crime_compare(docroot)
     n_player=0
     for p in player_todo:
         show_debug = 0
         if n_player < 3:
             show_debug = 1
-        my_oc_cf = []
-        for pair in all_oc_cf:
-            if int(pair[4]) == int(p):
-                # coerce tuple into list
-                notflipped = [pair[0], pair[1], pair[2], pair[3], pair[4], pair[5]]
-                my_oc_cf.append(notflipped)
-            elif pair[5] == p:
-                flipped = [pair[0], pair[1], pair[3], pair[2], pair[5], pair[4]]
-                my_oc_cf.append(flipped)
-        f_data.append(prepare_player_stats(p, pid2name, f_id, page_time, show_debug, fnamepre, var_interval_no, keeping_player, docroot, my_oc_cf, appleorange))
+        f_data.append(prepare_player_stats(p, pid2name, f_id, page_time, show_debug, fnamepre, var_interval_no, keeping_player, docroot))
         n_player += 1
     print(n_player, "players processed")
 

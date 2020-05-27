@@ -1,0 +1,66 @@
+<html>
+<head>
+<title>Chain Scoreboard</title>
+</head>
+<body>
+
+<a href="/rhubarb/home">home</a>
+<br/>
+<a href="/rhubarb/chain_reports">chain_reports</a>
+
+<h2>Player performance in a particular chain by faction {{f_id}}</h2>
+
+<h2>Outline</h2>
+From: {{outline[0]}} To: {{outline[1]}}
+<br/>
+Finished: {{outline[2]}}
+
+<p>
+<h2>Scoreboard</h2>
+
+<table border="1">
+<tr>
+ <th></th>
+ <th>Player</th>
+ <th>actions</th>
+ <th>attacked</th>
+ <th>hospitalized</th>
+ <th>mugged</th>
+ <th>respect</th>
+ <th>att_stale</th>
+ <th>lost</th>
+ <th>att_escape</th>
+ <th>def_stale</th>
+ <th>defend</th>
+ <th>def_escape</th>
+</tr>
+
+<tr>
+ <td></td>
+ <td></td>
+ <td><a href="{{hyper[0][0]}}">{{hyper[0][1]}}</a></td>
+ <td><a href="{{hyper[1][0]}}">{{hyper[1][1]}}</a></td>
+ <td><a href="{{hyper[2][0]}}">{{hyper[2][1]}}</a></td>
+ <td><a href="{{hyper[3][0]}}">{{hyper[3][1]}}</a></td>
+ <td><a href="{{hyper[4][0]}}">{{hyper[4][1]}}</a></td>
+ <td><a href="{{hyper[5][0]}}">{{hyper[5][1]}}</a></td>
+ <td><a href="{{hyper[6][0]}}">{{hyper[6][1]}}</a></td>
+ <td><a href="{{hyper[7][0]}}">{{hyper[7][1]}}</a></td>
+ <td><a href="{{hyper[8][0]}}">{{hyper[8][1]}}</a></td>
+ <td><a href="{{hyper[9][0]}}">{{hyper[9][1]}}</a></td>
+ <td><a href="{{hyper[10][0]}}">{{hyper[10][1]}}</a></td>
+</tr>
+
+{% for drow in deco %}
+  <tr>
+   <td>{{ drow[0] }}</td>
+   <td> {{ drow[1] }} </td><td> {{drow[2].actions}} </td><td> {{drow[2].attacked}} </td>
+   <td> {{drow[2].hospitalized}} </td><td> {{drow[2].mugged}} </td><td> {{drow[2].respect}} </td>
+   <td> {{drow[2].att_stale}} </td><td> {{drow[2].lost}} </td><td> {{drow[2].att_escape}} </td>
+   <td> {{drow[2].def_stale}} </td><td> {{drow[2].defend}} </td><td> {{drow[2].def_escape}} </td>
+  </tr>
+{% endfor %}
+</table>
+
+</body>
+</html>

@@ -4,7 +4,6 @@ import sqlite3
 import time
 import web_api
 import dehtml
-import oc_analytics
 import re
 import sys
 
@@ -102,7 +101,6 @@ def get_faction(web, f_id, oc_interval):
             #
             members=result[1]['members']
             for m in members:
-                print("Found member", m)
                 c.execute("""replace into pid_wanted values(?,?)""", (m, t,))
 
             # Because I have not figured out "insert if not exists", "on conflict" kind of thing
@@ -142,6 +140,25 @@ def get_faction(web, f_id, oc_interval):
             conn.commit()
         else:
             print("Problem discovering faction basic? ", result)
+
+        # Is there a chain?
+        result = web.torn('faction', f_id, 'chain')
+        if 'OK' == result[0]:
+            # XXX store if new, update if changed
+            chains_already_seen = {}
+            c.execute("""select tstart from chain where f_id=? and tend=?""", (f_id, 0,))
+            for row in c:
+                chains_already_seen[row[0]] = 1
+            try:
+                current = result[1]['chain']['current']
+                tstart = result[1]['chain']['start']
+                if current >= 25:
+                    if not tstart in chains_already_seen:
+                        c.execute("""insert into chain values(f_id, et, current, tstart)""", (f_id, t, current, tstart,))
+            except:
+                print("exception handling chain data", result, file=sys.stderr)
+        else:
+            print("Problem discovering faction chain?", result)
 
         # faction medical stocks - how much neumune?
         neumune_quantity = 0
@@ -226,7 +243,6 @@ def get_faction(web, f_id, oc_interval):
             oc_plan_already = {}
             for row in c:
                 oc_plan_already[str(row[0])] = row  # needs string key
-            analytics = oc_analytics.Compare(c, f_id)
             for crimeplan in oc:
                 if crimeplan in oc_plan_already:
                     if  oc[crimeplan]['time_started'] != oc_plan_already[crimeplan][1]:
@@ -241,7 +257,6 @@ def get_faction(web, f_id, oc_interval):
                         c.execute("""update factionoc set et=? where faction_id=? and oc_plan_id=?""", (t, f_id, crimeplan,))
                         participants = oc_plan_already[crimeplan][3]
                         players = participants.split(',')
-                        analytics.ingest(f_id, crimeplan, oc[crimeplan]['crime_id'], players)
                         # counting OC success by each player
                         if oc[crimeplan]['success']:
                             for pu in players:
@@ -262,7 +277,6 @@ def get_faction(web, f_id, oc_interval):
                     print("Storing new OC ", crimeplan)
             #
             c.execute("""update factionwatch set latest_oc=? where faction_id=?""", (t, f_id,))
-            analytics.examine()
             conn.commit()
         else:
             print("Problem discovering faction crimes?  ", result)
@@ -346,6 +360,8 @@ def expire_old_data():
     c.execute("""delete from drugs where et<?""", (year_ago,))
     c.execute("""delete from factionrespect where et<?""", (year_ago,))
     c.execute("""delete from factionstore where et<?""", (year_ago,))
+    c.execute("""delete from chain where et<?""", (weeks_ago,))
+    c.execute("""delete from chain where cid != ? and tend != ? and tend < ?""", (0,0,day_ago,))
     # These next ones are more complicated because of foreign keys.
     c.execute("""select oc_plan_id from factionoc where et<?""", (year_ago,))
     oc_to_del = []
@@ -417,6 +433,7 @@ def clean_data():
                 if player_id in faction[faction_id]:
                     faction[faction_id][player_id].append(row)
                     need_to_clean = 1
+                    print("factionwatch HAS PLAYER TWICE ?",  faction_id, player_id, file=sys.stderr)
                 else:
                     faction[faction_id][player_id] = [row]
             else:
@@ -427,17 +444,23 @@ def clean_data():
             for p in faction[f]:
                 list_length = len(faction[f][p])
                 if list_length > 1:
+                    print("PLANNNING  TO CLEAN factionwatch", f, p, faction[f][p],  file=sys.stderr)
                     # replace multiple rows with one chosen row
                     et=1234
                     latest_basic = 99
                     latest_oc = 99
-                    for x in faction[f][p]:
-                        if x[0] > et:
-                            et = x[0]
-                            latest_basic = x[1]
-                            latest_oc = x[2]
-                    c.execute("""delete from factionwatch WHERE ignore=? and faction_id=? and player_id=?""", (ignore, f, p,))
-                    c.execute("""insert into factionwatch values (?, ?,?,?, ?, ?)""", (et, latest_basic, latest_oc, ignore, f, p,))
+                    try:
+                        for x in faction[f][p]:
+                            if not len(x) == 3:
+                                print("faction details not as expected", p, faction[f])
+                            if x[0] > et:
+                                et = x[0]
+                                latest_basic = x[1]
+                                latest_oc = x[2]
+                        c.execute("""delete from factionwatch WHERE ignore=? and faction_id=? and player_id=?""", (ignore, f, p,))
+                        c.execute("""insert into factionwatch values (?, ?,?,?, ?, ?)""", (et, latest_basic, latest_oc, ignore, f, p,))
+                    except:
+                        pass
                     conn.commit()
 
 def refresh_namelevel(web):
@@ -601,6 +624,62 @@ def large_chain_bonus():
                 c.execute("""replace into bonus_counter values(?,?,?)""", tuple(x))
         conn.commit()
 
+def complete_chains():
+    now = int(time.time())
+    work_factions = {}
+    work_on_these = {}
+    discover_these = {}
+    c.execute("""select f_id,et,tstart from chain where tend=?""", (0,))
+    for row in c:
+        if (now - row[1])  > 3600:
+            work_factions[row[0]] = row[0]
+            work_on_these[row[2]] = row[0]
+        elif (now - row[1])  > 900:
+            discover_factions[row[0]] = row[0]
+            discover_these[row[2]] = row[0]
+        else:
+            # no DB update here, already fresh
+            pass
+
+    if discover_these:
+        for chain_faction in discover_factions.keys():
+            result = web.torn('faction', chain_faction, 'chain')
+            if 'OK' == result[0]:
+                print("XXX CHAIN WORK for faction", chain_faction, discover_these, result)
+                current = result[1]['chain']['current']
+                tstart = result[1]['chain']['start']
+                tend = result[1]['chain']['end']
+                if tend or not tstart:
+                    # no current chain means any known chain is over
+                    work_factions[chain_faction] = chain_faction
+                if tstart in discover_these:
+                    c.execute("""update chain set current=? where f_id=? and tstart=?""", (current, chain_faction, tstart,))
+                    c.execute("""update chain set et=? where f_id=? and tstart=?""", (now, chain_faction, tstart,))
+            else:
+                print("problem with chain from API", result, file=sys.stderr)
+
+    if work_factions:
+        for chain_faction in work_factions.keys():
+            print("LOOK AT CHAIN COMPLETION for faction", chain_faction, work_on_these)
+            result = web.torn('faction', chain_faction, 'chains')
+            if 'OK' == result[0]:
+                all_chains = result[1]
+                for cid in all_chains.keys():
+                    if all_chains[cid]['start'] in work_on_these:
+                        respect = all_chains[cid]['respect']
+                        tend = all_chains[cid]['end']
+                        chain_len = all_chains[cid]['chain']
+                        if tend > 0:
+                            print("COMPLETE CHAIN FOUND for faction", chain_faction, all_chains[cid])
+                            c.execute("""update chain set cid=? where f_id=? and tstart=?""", (cid,chain_faction,all_chains[cid]['start'],))
+                            c.execute("""update chain set respect=? where f_id=? and tstart=?""", (respect,chain_faction,all_chains[cid]['start'],))
+                            c.execute("""update chain set chain=? where f_id=? and tstart=?""", (chain_len,chain_faction,all_chains[cid]['start'],))
+                            c.execute("""update chain set tend=? where f_id=? and tstart=?""", (tend,chain_faction,all_chains[cid]['start'],))
+            else:
+                print("problem with chains from API", result, file=sys.stderr)
+
+    conn.commit()
+
 ###################################################################################################
 
 # START
@@ -710,11 +789,11 @@ for p in p_todo:
     if rc == "TOO RECENT":
         continue
     print("return from get_player(" + str(p) + ") is ", rc)
-    #time.sleep(2)
 
 oc_count_per_player()
 refresh_namelevel(web)
 refresh_faction_membership()
+complete_chains()
 large_chain_bonus()
 clean_data()
 expire_old_data()

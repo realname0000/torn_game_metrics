@@ -29,6 +29,8 @@ target_token = re.compile('^([-\d]+)-(\d+)-(\d+)-(\d+)-([0-9a-f]+)$')
 time_interval = re.compile('^(\d+)-(\d+)$')
 # f_id, crimetype, timestamp, (either number or 'history'),  hmac
 oc_history_picker = re.compile('^([-\d]+)-([0-9])-([0-9]+)-([0-9a-z]+)-([0-9a-f]+)$')
+chain_token = re.compile('^(\d+)-chain-(\d+)-(\d+)-([0-9a-f]+)$')
+chain_token_o = re.compile('^(\d+)-scoreboard-(\d+)-(\d+)-([0-9a-f]+)-([a-z]+)$')  # with ordering parameter
 
 now = int(time.time())
 
@@ -41,7 +43,7 @@ app = Flask(__name__)
 
 app.config.from_pyfile('config.py')
 
-loghandler = logging.handlers.RotatingFileHandler('/home/peabrain/logs/tu0028.log', maxBytes=1024 * 1024, backupCount=10)
+loghandler = logging.handlers.RotatingFileHandler('/home/peabrain/logs/tu0031.log', maxBytes=1024 * 1024, backupCount=10)
 loghandler.setLevel(logging.INFO)
 app.logger.setLevel(logging.INFO)
 app.logger.addHandler(loghandler)
@@ -137,6 +139,50 @@ class Timerange(db.Model):
     tstart = db.Column(db.Integer)
     tend = db.Column(db.Integer)
     f_id = db.Column(db.Integer)
+
+class Chains(db.Model):
+    pg_chain_id = db.Column(db.Integer, primary_key=True)
+    f_id = db.Column(db.Integer)
+    et = db.Column(db.Integer)
+    chain_len = db.Column(db.Integer)
+    tstart = db.Column(db.Integer)
+    tend = db.Column(db.Integer)
+    torn_chain_id = db.Column(db.Integer)
+    respect = db.Column(db.String(16))
+
+class Chain_player_sum(db.Model):
+    pk = db.Column(db.Integer, primary_key=True)
+    pg_chain_id    = db.Column(db.Integer)
+    player_id      = db.Column(db.Integer)
+    actions        = db.Column(db.Integer)
+    attacked       = db.Column(db.Integer)
+    hospitalized   = db.Column(db.Integer)
+    mugged         = db.Column(db.Integer)
+    respect        = db.Column(db.Integer)
+    att_stale      = db.Column(db.Integer)
+    lost           = db.Column(db.Integer)
+    att_escape     = db.Column(db.Integer)
+    def_stale      = db.Column(db.Integer)
+    defend         = db.Column(db.Integer)
+    def_escape     = db.Column(db.Integer)
+
+class Chain_members(db.Model):
+    mempk        = db.Column(db.Integer, primary_key=True)
+    pg_chain_id  = db.Column(db.Integer)
+    player_id    = db.Column(db.Integer)
+    player_name  = db.Column(db.String(16))
+
+class Bonus_events(db.Model):
+    bonus_pk_id    = db.Column(db.Integer, primary_key=True)
+    pg_chain_id    = db.Column(db.Integer)
+    et             = db.Column(db.Integer)
+    att_name       = db.Column(db.String(16))
+    att_id         = db.Column(db.Integer)
+    verb           = db.Column(db.String(16))
+    def_name       = db.Column(db.String(16))
+    def_id         = db.Column(db.Integer)
+    outcome        = db.Column(db.String(20))
+    num_respect    = db.Column(db.Numeric(12,4))
 
 
 @login_manager.user_loader
@@ -1297,9 +1343,6 @@ def target_log(defid_attid_tstart_tend_hmac):
     # test for correct hmac
     if not hmac.compare_digest(hmac_hex, given_hmac):
         return render_template('message.html', message='link has been altered; cannot use it', logged_in=True)
-#   # test for acceptable timestamp
-#   if ((int(timestamp) + 86400) < right_now):
-#       return render_template('message.html', message='too old; link has expired', logged_in=True)
 
     # from here it's similar to combat_events and uses the same template
     role='attack'
@@ -1463,6 +1506,232 @@ def define_timerange(t_to_t):
     return render_template('define_timerange.html', title='Timerange', form=form, start_block=start_block, end_block=end_block, tstart=tstart, tend=tend, f_id=f_id)
 
 #=================================================================================
+@app.route("/chain_reports", methods=['GET'])
+@app.route("/rhubarb/chain_reports", methods=['GET'])
+@login_required
+def chain_reports():
+    rodb = read_sqlite.Rodb()
+    player = rodb.get_player_data(current_user.username)
+    faction_sum = rodb.get_faction_for_player(current_user.username)
+    f_id = faction_sum['fid']
+
+    chains_from_orm = Chains.query.filter_by(f_id = f_id).all()
+    # finished and unfinished chains
+    chains_fin = []
+    chains_unf = []
+    for chain in chains_from_orm:
+        start_text = time.strftime("%A %Y-%m-%d %H:%M",time.gmtime(chain.tstart))
+        chain_len = chain.chain_len
+        respect = chain.respect
+        if chain.tend:
+            end_text = time.strftime("%A %Y-%m-%d %H:%M",time.gmtime(chain.tend))
+        else:
+            end_text = time.strftime("%A %Y-%m-%d %H:%M",time.gmtime(chain.et))
+        # XXX needs to use the HMAC style link
+        # calc correct hmac
+        right_now = int(time.time())
+        chain_selection_pre =  str(f_id) + '-chain-' + str(chain.tstart) + '-' + str(right_now)
+        chain_selection = chain_selection_pre.encode("utf-8")
+        hmac_hex = hmac.new(hmac_key, chain_selection, digestmod=hashlib.sha1).hexdigest()
+        stage =  [ chain_selection_pre + '-' + hmac_hex, start_text, end_text, chain_len, respect ]
+        if chain.tend:
+            chains_fin.append(stage)
+        else:
+            chains_unf.append(stage)
+
+    return render_template('chain_reports.html', title='Chain reports', chains_fin=chains_fin, chains_unf=chains_unf, f_id=f_id)
+#=================================================================================
+@app.route("/chain_details/<fid_tstart_timestamp_hmac>", methods=['GET'])
+@app.route("/rhubarb/chain_details/<fid_tstart_timestamp_hmac>", methods=['GET'])
+def chain_details(fid_tstart_timestamp_hmac):
+
+    # what chain is this meant to display?
+    re_object = chain_token.match(fid_tstart_timestamp_hmac)
+    if re_object:
+        f_id = re_object.group(1)
+        chain_tstart = re_object.group(2)
+        timestamp = re_object.group(3)
+        given_hmac =  re_object.group(4)
+    else:
+        app.logger.info('in chain_details RE did not match URL')
+        return render_template("bad_graph_request.html")
+
+    # calc correct hmac
+    chain_selection = ( str(f_id) + '-chain-' + str(chain_tstart) + '-' + str(timestamp) ).encode("utf-8")
+    hmac_hex = hmac.new(hmac_key, chain_selection, digestmod=hashlib.sha1).hexdigest()
+
+    # test for correct hmac etc
+    right_now = int(time.time())
+    if not hmac.compare_digest(hmac_hex, given_hmac):
+        app.logger.info('in chain_details HMAC disagreement')
+        return render_template("bad_graph_request.html")
+    if ((int(timestamp) + 86400) < right_now):
+        app.logger.info('in chain_details timestamp is old')
+        return render_template("bad_graph_request.html")
+
+    # read from ORM which chain has the right f_id and tstart
+    ch = None
+    chains_from_orm = Chains.query.filter_by(f_id = f_id).filter_by(tstart = chain_tstart).all()
+    for chain in chains_from_orm:
+        ch = chain
+    if not ch:
+        return render_template('message.html', message='The chain you are looking for is not found.', logged_in=False)
+
+    # outline
+    tstart_text = time.strftime("%Y-%m-%d %H:%M",time.gmtime(ch.tstart))
+    if ch.tend:
+        et_text = time.strftime("%Y-%m-%d %H:%M",time.gmtime(ch.tend))
+        over = True
+    else:
+        et_text = time.strftime("%Y-%m-%d %H:%M",time.gmtime(ch.et))
+        over = False
+    outline = [tstart_text, et_text, over, ch.chain_len, ch.respect ]
+
+    # members for names
+    who_inactive = {}
+    our_players = Chain_members.query.filter_by(pg_chain_id = ch.pg_chain_id).all()
+    for p_mem in our_players:
+        who_inactive[p_mem.player_id] = p_mem.player_name + '[' + str(p_mem.player_id) + ']'
+
+    # bonus
+    bonus_list = []
+    bonus_table = Bonus_events.query.filter_by(pg_chain_id = ch.pg_chain_id).all()
+    for bonus in bonus_table:
+        if (now - bonus.et) > 3600:
+            # ok to show attacker name
+            try:
+                stage = [ who_inactive[bonus.att_id] ]
+            except:
+                stage = [ '?[' + str(bonus.att_id) + ']' ]
+        else:
+            # hide attacker name
+            stage = [ 'CENSORED[000000]' ]
+        stage.append(bonus.verb)
+        stage.append( bonus.def_name + '[' + str(bonus.def_id) + ']')
+        stage.append(bonus.outcome)
+        stage.append(bonus.num_respect)
+        bonus_list.append(stage)
+    bonus_list = sorted(bonus_list, key=lambda one: one[-1])
+
+    # player scoreboard (link to new route),
+    right_now = int(time.time())
+    scoreboard_chain_selection_pre =  str(f_id) + '-scoreboard-' + str(chain.tstart) + '-' + str(right_now)
+    scoreboard_chain_selection = scoreboard_chain_selection_pre.encode("utf-8")
+    hmac_hex = hmac.new(hmac_key, scoreboard_chain_selection, digestmod=hashlib.sha1).hexdigest()
+    scoreboard_at = scoreboard_chain_selection_pre + '-' + hmac_hex + '-resd'
+
+    # inactive players
+    #
+    player_scores = Chain_player_sum.query.filter_by(pg_chain_id = ch.pg_chain_id).all()
+    for p_score in player_scores:
+        if p_score.player_id in who_inactive:
+            if p_score.actions:
+                del who_inactive[p_score.player_id]
+
+    return render_template('chain_details.html', title='Chain details', f_id=f_id, outline=outline, scoreboard_at=scoreboard_at, inactive = who_inactive, bonus = bonus_list)
+#=================================================================================
+@app.route("/chain_scoreboard/<fid_tstart_timestamp_hmac>", methods=['GET'])
+@app.route("/rhubarb/chain_scoreboard/<fid_tstart_timestamp_hmac>", methods=['GET'])
+def chain_scoreboard(fid_tstart_timestamp_hmac):
+
+    # what chain is this meant to display?
+    re_object = chain_token_o.match(fid_tstart_timestamp_hmac)
+    if re_object:
+        f_id = re_object.group(1)
+        chain_tstart = re_object.group(2)
+        timestamp = re_object.group(3)
+        given_hmac =  re_object.group(4)
+        orderparm =  re_object.group(5)
+    else:
+        app.logger.info('in chain_player_summary RE did not match URL')
+        return render_template("bad_graph_request.html")
+
+    # calc correct hmac
+    chain_selection = ( str(f_id) + '-scoreboard-' + str(chain_tstart) + '-' + str(timestamp) ).encode("utf-8")
+    hmac_hex = hmac.new(hmac_key, chain_selection, digestmod=hashlib.sha1).hexdigest()
+
+    # test for correct hmac etc
+    right_now = int(time.time())
+    if not hmac.compare_digest(hmac_hex, given_hmac):
+        app.logger.info('in chain_player_summary HMAC disagreement')
+        return render_template("bad_graph_request.html")
+    if ((int(timestamp) + 86400) < right_now):
+        app.logger.info('in chain_player_summary timestamp is old')
+        return redirect('/rhubarb/chain_reports')
+
+    # read from ORM which chain has the right f_id and tstart
+    ch = None
+    chains_from_orm = Chains.query.filter_by(f_id = f_id).filter_by(tstart = chain_tstart).all()
+    for chain in chains_from_orm:
+        ch = chain
+    if not ch:
+        return render_template('message.html', message='The chain you are looking for is not found.', logged_in=False)
+
+    # hyperlinks for ordering table
+    hyper_seed = [ '/rhubarb/chain_scoreboard/' + fid_tstart_timestamp_hmac.rstrip('abcdefghijklmnopqrstuvwxyz') , 'Sort']
+    hyper = []
+    for nh in range(11):
+        hyper.append( hyper_seed[:] ) # copy makes these separate data items unlike  [...] * 11
+    table_column = {}
+    nh = 0
+    table_control = [['act','actions'], ['att','attacked'], ['hos','hospitalized'], ['mug','mugged'], ['res','respect'],
+            ['ast','att_stale'], ['los','lost'], ['ate','att_escape'], ['dst','def_stale'], ['def','defend'], ['des','def_escape']]
+    for cols in table_control:
+        table_column[cols[0]] = cols[1]
+        hyper[nh][0] += cols[0] + 'd'
+        nh += 1
+
+    # get from ORM the chain_player_summary for this chain
+    # outline
+    tstart_text = time.strftime("%Y-%m-%d %H:%M",time.gmtime(ch.tstart))
+    if ch.tend:
+        et_text = time.strftime("%Y-%m-%d %H:%M",time.gmtime(ch.tend))
+        over = True
+    else:
+        et_text = time.strftime("%Y-%m-%d %H:%M",time.gmtime(ch.et))
+        over = False
+    outline = [tstart_text, et_text, over]
+
+    # members for names
+    who = {}
+    our_players = Chain_members.query.filter_by(pg_chain_id = ch.pg_chain_id).all()
+    for p_mem in our_players:
+        who[p_mem.player_id] = p_mem.player_name + '[' + str(p_mem.player_id) + ']'
+
+    summary = []
+    player_scores = Chain_player_sum.query.filter_by(pg_chain_id = ch.pg_chain_id).all()
+    for p_score in player_scores:
+        summary.append(p_score)
+
+    # SORTING depends on a parameter passed to the route
+    orderparm_s = orderparm[:3] # first 3 chars key the table_colum dict
+    if (len(orderparm) == 4) and (orderparm[-1] == 'd'):
+        reverse = True
+        #  remove 'd' from one hyperlink
+        nh = 0
+        for cols in table_control:
+            if cols[0] == orderparm_s:
+                hyper[nh][0] = hyper[nh][0][:-1]
+            nh += 1
+    else:
+        reverse = False
+    # need to sort on the right property
+    try:
+        summary = sorted(summary, key=lambda one: getattr(one, table_column[orderparm_s]), reverse=reverse)
+    except:
+        app.logger.info('sort failed - maybe bad orderparm (%s) supplied', orderparm)
+
+    # and decorate
+    deco = []
+    n=1
+    for x in summary:
+        if not who[x.player_id]:
+            who[x.player_id] = str(x.player_id)
+        deco.append( [n, who[x.player_id] , x])
+        n += 1
+
+    return render_template('chain_scoreboard.html', title='Chain scoreboard', f_id=f_id, outline=outline, hyper=hyper, deco=deco)
+#=================================================================================
 def test_strength(pw):
     if len(pw) < 8:
         return False
@@ -1476,4 +1745,3 @@ def test_strength(pw):
 
 if __name__ == "__main__":
     app.run(debug = True)
-

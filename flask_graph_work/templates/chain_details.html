@@ -1,0 +1,43 @@
+<html>
+<head>
+<title>Chain Details</title>
+</head>
+<body>
+
+<a href="/rhubarb/home">home</a>
+<br/>
+<a href="/rhubarb/chain_reports">chain_reports</a>
+
+<h2>Details of a particular chain by faction {{f_id}}</h2>
+
+<h2>Outline</h2>
+From: {{outline[0]}} To: {{outline[1]}}
+<br/>
+Finished: {{outline[2]}}
+<br/>
+Hits: {{outline[3]}}
+<br/>
+Respect: {{outline[4]}}
+<br/>
+
+<p>
+<h2>Bonuses</h2>
+<ul>
+{% for item in bonus %}
+<li>{{item[0]}} {{item[1]}} {{item[2]}} {{item[3]}}</li>
+{% endfor %}
+</ul>
+
+<p>
+<h2>Scoreboard</h2>
+<a href="/rhubarb/chain_scoreboard/{{scoreboard_at}}">details per player</a>
+
+<p>
+<h2>Inactive players</h2>
+<ul>
+{% for item in inactive %}
+<li>{{inactive[item]}}</li>
+{% endfor %}
+</ul>
+</body>
+</html>

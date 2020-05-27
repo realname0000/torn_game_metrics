@@ -409,7 +409,7 @@ class Rodb:
         page_time = int(time.time())
 
         # fid from pid
-        fid = 0
+        f_id = 0
         self.c.execute("""select faction_id from playerwatch where player_id=?""", (p_id,))
         for row in self.c:
             f_id = row[0]

@@ -1,0 +1,32 @@
+<html>
+<head>
+<title>Chain Reports</title>
+</head>
+<body>
+
+<a href="/rhubarb/home">home</a>
+
+<h2>These are chains for {{ f_id }}.</h2>
+<p>
+<ol>
+{% for item in chains_unf %}
+ <li>
+ unfinished chain: <a href="/rhubarb/chain_details/{{item[0]}}">view</a> start at {{item[1]}} end at {{item[2]}} length={{item[3]}} respect={{item[4]}}
+ </li>
+{% endfor %}
+</ol>
+
+<hr/>
+
+<ol>
+{% for item in chains_fin %}
+ <li>
+ finished chain: <a href="/rhubarb/chain_details/{{item[0]}}">view</a> start at {{item[1]}} end at {{item[2]}} length={{item[3]}} respect={{item[4]}}
+ </li>
+{% endfor %}
+</ol>
+
+<p>
+<a href="/rhubarb/enemy_watch">Faction attacks on enemies</a> (excluding the last hour)
+</body>
+</html>
