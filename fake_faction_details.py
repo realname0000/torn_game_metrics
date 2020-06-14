@@ -3,7 +3,6 @@
 import sqlite3
 import time
 import random
-import oc_analytics
 
 how_many_points = { # points per player crime
         0: 2,
@@ -174,7 +173,6 @@ def playercrime(c, players):
 
 def reap_oc(c, f_id):
     now = int(time.time())
-    analytics = oc_analytics.Compare(c, f_id)
     total_respect_gain = 0
     c.execute("""select distinct oc_plan_id,crime_id,crime_name,participants,time_ready from factionoc where faction_id=? and initiated=?""",(f_id,0,))
     plans = []
@@ -215,11 +213,9 @@ def reap_oc(c, f_id):
 
         participants = oc_plan_already[crimeplan][3]
         players = participants.split(',')
-        analytics.ingest(f_id, crimeplan, crime_id, players)
         print("Recording outcome of OC ", crimeplan)
         c.execute("""update factionwatch set latest_basic=? where faction_id=?""", (et, f_id,))
         c.execute("""update factionwatch set latest_oc=? where faction_id=?""", (et, f_id,))
-    analytics.examine()
     # update faction respect as a result of these OC
     c.execute("""select api_id,respect from factionrespect where f_id=? order by et desc limit 1""", (f_id,))
     for row in c:

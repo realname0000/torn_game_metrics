@@ -144,19 +144,22 @@ def get_faction(web, f_id, oc_interval):
         # Is there a chain?
         result = web.torn('faction', f_id, 'chain')
         if 'OK' == result[0]:
-            # XXX store if new, update if changed
+            # store if new
+            try:
+                current = result[1]['chain']['current']
+                tstart = result[1]['chain']['start']
+                cooldown = result[1]['chain']['cooldown']
+            except:
+                print("exception handling chain data", result, file=sys.stderr)
             chains_already_seen = {}
             c.execute("""select tstart from chain where f_id=? and tend=?""", (f_id, 0,))
             for row in c:
                 chains_already_seen[row[0]] = 1
-            try:
-                current = result[1]['chain']['current']
-                tstart = result[1]['chain']['start']
-                if current >= 25:
-                    if not tstart in chains_already_seen:
-                        c.execute("""insert into chain values(f_id, et, current, tstart)""", (f_id, t, current, tstart,))
-            except:
-                print("exception handling chain data", result, file=sys.stderr)
+            if current >= 25:
+                if not tstart in chains_already_seen:
+                    print("want to insert CHAIN TO RECORD START", f_id)
+                    c.execute("""insert into chain(f_id, et, current, tstart, cooldown) values(?,?,?,?)""", (f_id, t, current, tstart, cooldown,))
+                    print("just inserted CHAIN TO RECORD START", f_id)
         else:
             print("Problem discovering faction chain?", result)
 
@@ -370,8 +373,6 @@ def expire_old_data():
         oc_to_del.append(row[0])
     for oc in oc_to_del:
         c.execute("""delete from whodunnit where oc_plan_id=?""", (oc,))
-        c.execute("""delete from compare where oc_a=?""", (oc,))
-        c.execute("""delete from compare where oc_b=?""", (oc,))
         c.execute("""delete from factionoc where oc_plan_id=?""", (oc,))
     c.execute("""update admin set last_expire = ?""", (now,))
     conn.commit()
@@ -628,6 +629,7 @@ def complete_chains():
     now = int(time.time())
     work_factions = {}
     work_on_these = {}
+    discover_factions = {}
     discover_these = {}
     c.execute("""select f_id,et,tstart from chain where tend=?""", (0,))
     for row in c:
@@ -645,15 +647,20 @@ def complete_chains():
         for chain_faction in discover_factions.keys():
             result = web.torn('faction', chain_faction, 'chain')
             if 'OK' == result[0]:
-                print("XXX CHAIN WORK for faction", chain_faction, discover_these, result)
+                print("CHAIN WORK for faction", chain_faction, discover_these, result)
+# CHAIN WORK for faction 11581 {1591596083: 11581} ['OK', {'chain': {'current': 10000, 'max': 25000, 'timeout': 0, 'modifier': 1.75, 'cooldown': 94494, 'start': 1591596083}}, 1057741]
+                tend = None
                 current = result[1]['chain']['current']
                 tstart = result[1]['chain']['start']
-                tend = result[1]['chain']['end']
+                cooldown = result[1]['chain']['cooldown']
+                if cooldown > 0:
+                    tend = now
                 if tend or not tstart:
                     # no current chain means any known chain is over
                     work_factions[chain_faction] = chain_faction
                 if tstart in discover_these:
                     c.execute("""update chain set current=? where f_id=? and tstart=?""", (current, chain_faction, tstart,))
+                    c.execute("""update chain set cooldown=? where f_id=? and tstart=?""", (cooldown, chain_faction, tstart,))
                     c.execute("""update chain set et=? where f_id=? and tstart=?""", (now, chain_faction, tstart,))
             else:
                 print("problem with chain from API", result, file=sys.stderr)
@@ -663,9 +670,16 @@ def complete_chains():
             print("LOOK AT CHAIN COMPLETION for faction", chain_faction, work_on_these)
             result = web.torn('faction', chain_faction, 'chains')
             if 'OK' == result[0]:
-                all_chains = result[1]
+                print("result on chains:", result)
+                all_chains = result[1]['chains']
                 for cid in all_chains.keys():
-                    if all_chains[cid]['start'] in work_on_these:
+                    print("looking at chain", cid)
+                    got_start = None
+                    try:
+                        got_start = all_chains[cid]['start'] 
+                    except:
+                        print("no start found for chain", cid)
+                    if got_start in work_on_these:
                         respect = all_chains[cid]['respect']
                         tend = all_chains[cid]['end']
                         chain_len = all_chains[cid]['chain']
@@ -673,7 +687,8 @@ def complete_chains():
                             print("COMPLETE CHAIN FOUND for faction", chain_faction, all_chains[cid])
                             c.execute("""update chain set cid=? where f_id=? and tstart=?""", (cid,chain_faction,all_chains[cid]['start'],))
                             c.execute("""update chain set respect=? where f_id=? and tstart=?""", (respect,chain_faction,all_chains[cid]['start'],))
-                            c.execute("""update chain set chain=? where f_id=? and tstart=?""", (chain_len,chain_faction,all_chains[cid]['start'],))
+                            c.execute("""update chain set current=? where f_id=? and tstart=?""", (chain_len,chain_faction,all_chains[cid]['start'],))
+                            c.execute("""update chain set cooldown=? where f_id=? and tstart=?""", (cooldown, chain_faction, all_chains[cid]['start'],))
                             c.execute("""update chain set tend=? where f_id=? and tstart=?""", (tend,chain_faction,all_chains[cid]['start'],))
             else:
                 print("problem with chains from API", result, file=sys.stderr)
