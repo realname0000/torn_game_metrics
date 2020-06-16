@@ -1,0 +1,31 @@
+#!/bin/bash
+
+umask 022
+cd ~/bin || exit 1
+t=$(date +%s)
+
+s=$(stat -t lock/LOCK | cut -d' ' -f9)
+case "$s" in
+1) ;;
+*) echo quitting because of lock A ; exit 1;;
+esac
+
+ln lock/LOCK lock/$$
+
+s=$(stat -t lock/LOCK | cut -d' ' -f9)
+case "$s" in
+2) ;;
+*) echo quitting because of lock B ;  rm -f lock/$$; exit 1;;
+esac
+
+../bin/chain_data_from_sqlite.py > ../logs/C_${t}_1 2> ../logs/C_${t}_2
+
+../bin/match_challenges.py > ../logs/M_${t}_1 2> ../logs/M_${t}_2
+
+
+for rm_empty in ../logs/[CM]_${t}_2
+do
+    [ -f $rm_empty -a ! -s $rm_empty ] && rm $rm_empty
+done
+
+rm -f lock/$$
