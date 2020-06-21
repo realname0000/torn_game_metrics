@@ -158,7 +158,7 @@ def get_faction(web, f_id, oc_interval):
             if current >= 25:
                 if not tstart in chains_already_seen:
                     print("want to insert CHAIN TO RECORD START", f_id)
-                    c.execute("""insert into chain(f_id, et, current, tstart, cooldown) values(?,?,?,?)""", (f_id, t, current, tstart, cooldown,))
+                    c.execute("""insert into chain(f_id, et, current, tstart, cooldown) values(?,?,?,?,?)""", (f_id, t, current, tstart, cooldown,))
                     print("just inserted CHAIN TO RECORD START", f_id)
         else:
             print("Problem discovering faction chain?", result)
@@ -663,7 +663,7 @@ def complete_chains():
                     c.execute("""update chain set cooldown=? where f_id=? and tstart=?""", (cooldown, chain_faction, tstart,))
                     c.execute("""update chain set et=? where f_id=? and tstart=?""", (now, chain_faction, tstart,))
             else:
-                print("problem with chain from API", result, file=sys.stderr)
+                print("problem with chain from API", chain_faction, result, file=sys.stderr)
 
     if work_factions:
         for chain_faction in work_factions.keys():
@@ -688,6 +688,7 @@ def complete_chains():
                             c.execute("""update chain set cid=? where f_id=? and tstart=?""", (cid,chain_faction,all_chains[cid]['start'],))
                             c.execute("""update chain set respect=? where f_id=? and tstart=?""", (respect,chain_faction,all_chains[cid]['start'],))
                             c.execute("""update chain set current=? where f_id=? and tstart=?""", (chain_len,chain_faction,all_chains[cid]['start'],))
+                            cooldown = 1
                             c.execute("""update chain set cooldown=? where f_id=? and tstart=?""", (cooldown, chain_faction, all_chains[cid]['start'],))
                             c.execute("""update chain set tend=? where f_id=? and tstart=?""", (tend,chain_faction,all_chains[cid]['start'],))
             else:
