@@ -77,12 +77,6 @@ CREATE TABLE pstats (
         jailed         int,
         peoplebusted   int,
         failedbusts    int, hosp int, od int, oc_read int);
-CREATE TABLE compare (
-        f_id           int not NULL,
-        oc_a           int not NULL,
-        oc_b           int not NULL,
-        player_a       int not NULL,
-        player_b       int not NULL);
 CREATE TABLE player_compare_t (
         player_id       int primary key not NULL,
         et              int not NULL);
@@ -157,4 +151,31 @@ CREATE TABLE factionconsumption (
         small_first_aid int not NULL,
         bottle_beer     int not NULL
 , xanax int not NULL default 0, energy_refill int not null default 0);
+CREATE TABLE who_in_what (
+        player_id       int primary key UNIQUE not NULL,
+        faction_id      int not NULL);
+CREATE TABLE long_term_bonus (
+fid          int not NULL,
+evid         int not NULL,
+et           int not NULL,
+att_name     text not NULL,
+att_id       int not NULL,
+verb         text not NULL,
+def_name     text not NULL,
+def_id       int not NULL,
+outcome      text not NULL,
+respect  numeric(9,2) not NULL);
+CREATE TABLE bonus_counter (
+fid int not NULL,  att_id       int not NULL,  num        int not NULL);
+CREATE TABLE pid_wanted (
+        player_id          int primary key not NULL,
+        wanted             int not NULL);
+CREATE TABLE chain (
+        f_id            int not NULL,
+        et              int not NULL,
+        current         int not NULL,
+        tstart          int not NULL,
+        tend            int not NULL default 0,
+        cid             int not NULL default 0,
+        respect         text not NULL default "0" , cooldown int not NULL default 0);
 /* No STAT tables available */
