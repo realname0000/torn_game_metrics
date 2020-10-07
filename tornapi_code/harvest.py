@@ -505,7 +505,6 @@ def refresh_namelevel(web):
 
 def get_readiness(web, p_id, interval):
     # readiiness for OC
-    #
     # test for how recent a result we already have
     et = int (time.time())
     t_already = 0
@@ -533,9 +532,15 @@ def get_readiness(web, p_id, interval):
         f_id= None
         try:
             f_id = q1_data['faction']['faction_id']
-            print("XXXX (plan to update faction record)  Player %d seen in faction %d" % (p_id, f_id))
+            print("(about to update faction record)  Player %d seen in faction %d" % (p_id, f_id))
+            c.execute("""replace into who_in_what(player_id,faction_id,et) values(?,?,?)""", (p_id, f_id, et,))
+            if f_id > 0:
+                c.execute("""replace into faction_id2name(et,f_id,f_name) values(?,?,?)""", (et, f_id, q1_data['faction']['faction_name'],))
+            conn.commit()
+            c.execute("""update playerwatch set faction_id=? where player_id=?""", (f_id, p_id,))
+            conn.commit()
         except:
-            pass
+            conn.commit()
     else:
         return "Fail"
     # and find nerve if possible
@@ -583,13 +588,59 @@ def oc_count_per_player():
     conn.commit()
 
 def refresh_faction_membership():
+    now = int(time.time())
     p2f = {}
     c.execute("""select player_id,faction_id from playerwatch""")
     for row in c:
         p2f[row[0]] = row[1]
     for p in p2f.keys():
         if p2f[p] > 0:
-            c.execute("""replace into who_in_what(player_id,faction_id) values(?, ?)""", (p,p2f[p],) )
+            c.execute("""replace into who_in_what(player_id,faction_id,et) values(?, ?, ?)""", (p, p2f[p], now,) )
+    conn.commit()
+    #
+    p2f = {} # collect existing content of table
+    c.execute("""select player_id,faction_id,et from who_in_what""")
+    for row in c:
+        if row[2] > (now - 8640000):
+            p2f[row[0]] = row[1]
+    #
+    seen_in_combat = {}
+    c.execute("""select distinct att_id from combat_events""")
+    for row in c:
+        if row[0] > 0:
+            seen_in_combat[row[0]] = 1
+    c.execute("""select distinct def_id from combat_events""")
+    for row in c:
+        seen_in_combat[row[0]] = 1
+    #
+    try:
+        # delete NPC if present
+        del seen_in_combat[4]  # Duke
+        del seen_in_combat[15] # Leslie
+    except:
+        pass
+    #
+    replace_count = 0
+    for need_faction in seen_in_combat.keys():
+        if need_faction > 0 and not need_faction in p2f:
+            # request from API and add it to who_in_what
+            result = web.torn('user', need_faction, 'profile')
+            if 'OK' == result[0]:
+                try:
+                    fa = result[1]['faction']
+                    if fa:
+                        f_id = fa['faction_id']
+                        if f_id >= 0:
+                            c.execute("""replace into who_in_what(player_id,faction_id,et) values(?,?,?)""", (need_faction, f_id, now,))
+                            c.execute("""replace into faction_id2name(et,f_id,f_name) values(?,?,?)""", (now, f_id, fa['faction_name'],))
+                            replace_count += 1
+                except:
+                    print("Not found faction for ", need_faction)
+                    print(result)
+            else:
+                    print("Not found faction for ", need_faction, result)
+        if replace_count > 250:
+            break
     conn.commit()
 
 def large_chain_bonus():
@@ -670,10 +721,8 @@ def complete_chains():
             print("LOOK AT CHAIN COMPLETION for faction", chain_faction, work_on_these)
             result = web.torn('faction', chain_faction, 'chains')
             if 'OK' == result[0]:
-                print("result on chains:", result)
                 all_chains = result[1]['chains']
                 for cid in all_chains.keys():
-                    print("looking at chain", cid)
                     got_start = None
                     try:
                         got_start = all_chains[cid]['start'] 
@@ -692,7 +741,7 @@ def complete_chains():
                             c.execute("""update chain set cooldown=? where f_id=? and tstart=?""", (cooldown, chain_faction, all_chains[cid]['start'],))
                             c.execute("""update chain set tend=? where f_id=? and tstart=?""", (tend,chain_faction,all_chains[cid]['start'],))
             else:
-                print("problem with chains from API", result, file=sys.stderr)
+                print("problem with chains from API", chain_faction, result, file=sys.stderr)
 
     conn.commit()
 
