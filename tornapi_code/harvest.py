@@ -69,6 +69,8 @@ def get_player(web, p_id):
         c.execute("""insert into drugs values (?,?,?, ?,?,?, ?,?,?, ?,?,?)""", (t, p_id,  ps['cantaken'], ps['exttaken'], ps['lsdtaken'], ps['opitaken'], ps['shrtaken'], ps['pcptaken'], ps['xantaken'], ps['victaken'], ps['spetaken'], ps['kettaken'],))
         c.execute("""update playerwatch set latest=? where player_id=?""", (t, p_id,))
         conn.commit()
+    elif "EPARM need right apikey for bars or personalstats" == result[0]:
+        pass
     else:
         return "FAIL to get personalstats"
     get_readiness(web, p_id, 86400)
@@ -349,6 +351,7 @@ def get_faction(web, f_id, oc_interval):
 def expire_old_data():
     now = int(time.time())
     day_ago = now - 86400
+
     c.execute("""select last_expire from admin""",)
     for when in c:
         if when[0] > day_ago:
@@ -365,6 +368,7 @@ def expire_old_data():
     c.execute("""delete from factionstore where et<?""", (year_ago,))
     c.execute("""delete from chain where et<?""", (weeks_ago,))
     c.execute("""delete from chain where cid != ? and tend != ? and tend < ?""", (0,0,day_ago,))
+    c.execute("""delete from error where code=? and et<?""", (9, weeks_ago,))
     # These next ones are more complicated because of foreign keys.
     c.execute("""select oc_plan_id from factionoc where et<?""", (year_ago,))
     oc_to_del = []
@@ -532,7 +536,6 @@ def get_readiness(web, p_id, interval):
         f_id= None
         try:
             f_id = q1_data['faction']['faction_id']
-            print("(about to update faction record)  Player %d seen in faction %d" % (p_id, f_id))
             c.execute("""replace into who_in_what(player_id,faction_id,et) values(?,?,?)""", (p_id, f_id, et,))
             if f_id > 0:
                 c.execute("""replace into faction_id2name(et,f_id,f_name) values(?,?,?)""", (et, f_id, q1_data['faction']['faction_name'],))
@@ -590,21 +593,32 @@ def oc_count_per_player():
 def refresh_faction_membership():
     now = int(time.time())
     p2f = {}
-    c.execute("""select player_id,faction_id from playerwatch""")
-    for row in c:
-        p2f[row[0]] = row[1]
-    for p in p2f.keys():
-        if p2f[p] > 0:
-            c.execute("""replace into who_in_what(player_id,faction_id,et) values(?, ?, ?)""", (p, p2f[p], now,) )
-    conn.commit()
-    #
+    f_known_names = {}
+    f_wanted = {}
+    f_need_to_get = {}
+    seen_in_combat = {}
+
     p2f = {} # collect existing content of table
     c.execute("""select player_id,faction_id,et from who_in_what""")
     for row in c:
-        if row[2] > (now - 8640000):
+        if row[2] > (now - (86400 * 25)):
             p2f[row[0]] = row[1]
+    # Have we got all the faction names we might need to display?
+    c.execute("""select f_id from faction_id2name""")
+    for row in c:
+        f_known_names[row[0]] = True
+    c.execute("""select distinct faction_id from who_in_what""")
+    for row in c:
+        f_wanted[row[0]] = True
+    for x in f_wanted:
+        if not x in f_known_names:
+            f_need_to_get[x] = True
+    for x in f_need_to_get:
+        c.execute("""select player_id from who_in_what where ?=faction_id limit 1""", (x,))
+        for row in c:
+            seen_in_combat[row[0]] = 1  # setting this player_id to be queried by api
+            del p2f[row[0]]
     #
-    seen_in_combat = {}
     c.execute("""select distinct att_id from combat_events""")
     for row in c:
         if row[0] > 0:
@@ -621,7 +635,7 @@ def refresh_faction_membership():
         pass
     #
     replace_count = 0
-    for need_faction in seen_in_combat.keys():
+    for need_faction in seen_in_combat.keys():  # need faction for this player
         if need_faction > 0 and not need_faction in p2f:
             # request from API and add it to who_in_what
             result = web.torn('user', need_faction, 'profile')
@@ -639,7 +653,7 @@ def refresh_faction_membership():
                     print(result)
             else:
                     print("Not found faction for ", need_faction, result)
-        if replace_count > 250:
+        if replace_count > 300:
             break
     conn.commit()
 
@@ -769,7 +783,7 @@ for f in f_ignore:
     if f in f_todo:
         del f_todo[f]
 
-web=web_api.Tornapi(c) # use this one object throughout
+web=web_api.Tornapi(c, None) # use this one object throughout
 
 # detect OC that are ready or nearly ready
 near = 3600 + int(time.time())

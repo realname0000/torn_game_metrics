@@ -38,39 +38,17 @@ def prepare_player_stats(p_id, pid2name, f_id, page_time, show_debug, fnamepre, 
     except:
         os.mkdir(longdname)
 
-    # produce OC list for this player
-    linebreak = ''
-    db_queue = []
-    c.execute("""select factionoc.crime_name,factionoc.initiated,factionoc.success,factionoc.time_completed,factionoc.time_executed,factionoc.participants,factionoc.money_gain,factionoc.respect_gain,factionoc.et,factionoc.time_ready from factionoc,whodunnit where factionoc.oc_plan_id = whodunnit.oc_plan_id and  whodunnit.player_id = ? order by time_ready desc""", (p_id,))
-    for row in c:
-        db_queue.append(row)
-    #
-    if len(db_queue):
-        # what should the name of the web page be?
-        hist=oc_history_to_text.Crime_history(docroot)
-        retlist = hist.crime2html(c, db_queue, pid2name, 1, 'player', player_dname, p_id, var_interval_no)
-        if show_debug:
-            print(retlist)
-        got_page = retlist[0]
-        if got_page:
-            # time parameter to help see whether a page has changed since you last loaded it in the browser
-            crimes_planned = '<a href="' + retlist[1] + '?t=' +  str(retlist[2]) + '">OC history</a>'
-        else:
-            crimes_planned = 'failed to get page'
-    else:
-        crimes_planned = 'no OC to show'
-
     # attacknews
     flask_parm = (str(f_id) + '-' + str(p_id) + 'attack' + str(int(time.time())) ).encode("utf-8")
     hmac_hex = hmac.new(hmac_key, flask_parm, digestmod=hashlib.sha1).hexdigest()
-    crimes_planned += '<br/><a href="/rhubarb/faction_attack/' + str(flask_parm)[2:-1] + '-' +  hmac_hex + '">attack</a>'
+    player_event_string = '<br/><a href="/rhubarb/faction_attack/' + str(flask_parm)[2:-1] + '-' +  hmac_hex + '">attack</a>'
     #
     flask_parm = (str(f_id) + '-' +  str(p_id) + 'defend' + str(int(time.time())) ).encode("utf-8")
     hmac_hex = hmac.new(hmac_key, flask_parm, digestmod=hashlib.sha1).hexdigest()
-    crimes_planned += '<br/><a href="/rhubarb/faction_attack/' + str(flask_parm)[2:-1] + '-' +  hmac_hex + '">defend</a>'
+    player_event_string += '<br/><a href="/rhubarb/faction_attack/' + str(flask_parm)[2:-1] + '-' +  hmac_hex + '">defend</a>'
 
 
-    # Calc OC rations
+    # Calc OC ratios
     crimes_done = {}
     crimes_good = {}
     c.execute("""select factionoc.crime_name,factionoc.success from factionoc,whodunnit where factionoc.oc_plan_id = whodunnit.oc_plan_id and  whodunnit.player_id = ? and factionoc.initiated = 1""",(p_id,))
@@ -181,7 +159,7 @@ def prepare_player_stats(p_id, pid2name, f_id, page_time, show_debug, fnamepre, 
         #
         col2_answer = "selling illegal product<br/>theft<br/>auto theft<br/>drug deals<br/>computer crimes<br/>murder<br/>fraud crimes<br/>other<br/>total"
 
-    blob.append(crimes_planned)
+    blob.append(player_event_string)
     blob.append(col_ratio_answer)
     blob.append(col6_answer)
     blob.append(pstats)
@@ -216,7 +194,7 @@ def prepare_player_stats(p_id, pid2name, f_id, page_time, show_debug, fnamepre, 
         print('<br/><a href="/rhubarb/graph/' + str(graph_selection)[2:-1] + '-' +  hmac_hex + '">detailed drug graph</a>', file=pg_index)
 
     # picture file graphs
-    graph_action=player_graphs.Draw_graph(docroot, c, var_interval_no, player_dname)
+    graph_action=player_graphs.Draw_graph(docroot, c, var_interval_no, player_dname, old_player_dname)
     graph_urls = graph_action.player(pid2name, p_id)
     for gu in graph_urls:
         print('<br/><img src="' + gu + '" alt="timeseries graph">', file=pg_index)
@@ -479,59 +457,49 @@ for row in c:
     if not ign:
         watch[pid] = latest
 
-keep_this_faction_htdoc.exterminate()
-keep_this_player_htdoc.exterminate()
-
 p_already = keep_this_player_htdoc.showid()
 
-conn.commit()
-c.close()
-
-# Do we need to delete old entries from playerwatch?
-plan_deletion = False
+# What about other players?
+plan_further_players = False
 for pid in watch.keys():
     if pid in p_already:
         continue
-    plan_deletion = True
+    plan_further_players = True
     break
 
-if not plan_deletion:
+if not plan_further_players:
+    conn.commit()
+    c.close()
     exit(0)
 
-
-# will need read-write access
-
-conn2 = sqlite3.connect('/var/torn/torn_db')
-c2 = conn2.cursor()
-conn2.commit()
-
-fnamepre = None
-c2.execute("""select fnamepre from admin""")
-for row in c2:
-    fnamepre = row[0]
-
+# plotting players with no faction
 pid2name = {}  # used while processing each player
 for p_id in watch.keys():
     if p_id in p_already:
         continue
     print("player with no faction:", p_id)
 
-    c2.execute("""select playerwatch.player_id,namelevel.name from playerwatch,namelevel where playerwatch.player_id=namelevel.player_id and playerwatch.player_id=?""", (p_id,))
-    for p in c2:
+    c.execute("""select playerwatch.player_id,namelevel.name from playerwatch,namelevel where playerwatch.player_id=namelevel.player_id and playerwatch.player_id=?""", (p_id,))
+    for p in c:
         pid2name[str(p[0])] = p[1]
 
     # picture file graphs
+    old_player_dname = hashlib.sha1(bytes('player-directory-for' + str(p_id) + fnamepre + str(var_interval_no-1), 'utf-8')).hexdigest()
     player_dname = hashlib.sha1(bytes('player-directory-for' + str(p_id) + fnamepre + str(var_interval_no), 'utf-8')).hexdigest()
+    keep_this_player_htdoc.allow(player_dname)
     longdname = docroot + 'player/' + player_dname
     try:
         mtime = os.stat(longdname).st_mtime
     except:
         os.mkdir(longdname)
-    graph_action=player_graphs.Draw_graph(docroot, c2, var_interval_no, player_dname)
+
+    graph_action=player_graphs.Draw_graph(docroot, c, var_interval_no, player_dname, old_player_dname)
     graph_urls = graph_action.player(pid2name, p_id)
     try:
         print(str(p_id), "player data written to", docroot + graph_urls[0])
     except:
         print(str(p_id), "player data written to ... NOT WRITTEN")
-conn2.commit()
-c2.close()
+conn.commit()
+c.close()
+keep_this_faction_htdoc.exterminate()
+keep_this_player_htdoc.exterminate()

@@ -6,10 +6,11 @@ import hashlib
 
 class Draw_graph:
 
-    def __init__(self, docroot, c, var_interval_no, player_dname):
+    def __init__(self, docroot, c, var_interval_no, player_dname, old_player_dname):
         self.docroot = docroot
         self.c = c
         self.player_dname = player_dname
+        self.old_player_dname = old_player_dname
 
     def one_graph(self, xx, y, y2, fname, subject, title):
         plt.clf()
@@ -103,6 +104,8 @@ class Draw_graph:
             else:
                 print("bad graph name", subject, p_id)
                 continue
+
+
             if nonzero_data and (len(xx) > 2):
                 player_name = '?'
                 if str(p_id) in pid2name:
@@ -111,13 +114,33 @@ class Draw_graph:
                 graphname = hashlib.sha1(bytes('player-graph-for' + str(p_id) + self.player_dname + subject, 'utf-8')).hexdigest()
                 short_fname ="player/" + self.player_dname + "/" + graphname + ".png"
                 long_fname = self.docroot + short_fname
+
+                # logic around when to write a new graph (supposed to involve less work at new day)
+                mtime = 0
                 try:
                     mtime = os.stat(long_fname).st_mtime
-                    if mtime > last_x:
-                        urls.append('/' + short_fname)
-                        continue # no need to redraw graph
+                    print('Player png', str(p_id), long_fname, 'EXISTS')
                 except:
-                    pass
-                new_graph = self.one_graph(xx, yy, y2, short_fname, subject, player_name)
-                urls.append(new_graph)
+                    try:
+                        # new file does not exist, test for the old one
+                        old_graphname = hashlib.sha1(bytes('player-graph-for' + str(p_id) + self.old_player_dname + subject, 'utf-8')).hexdigest()
+                        old_short_fname ="player/" + self.old_player_dname + "/" + old_graphname + ".png"
+                        old_long_fname = self.docroot + old_short_fname
+                        mtime = os.stat(old_long_fname).st_mtime
+                        # older graph exists
+                        os.link(old_long_fname, long_fname) # reuse the old file
+                        print('Player png', str(p_id), old_lin_name, long_fname, 'SHOULD LINK THEM')
+                    except:
+                        # old and new files both missing
+                        print('Player png', str(p_id), old_long_fname, long_fname, 'OLD+NEW MISSING')
+                        pass
+                if mtime <= last_x:
+                    print('Player png', str(p_id), long_fname, 'NEEDS RENEWAL', mtime, last_x)
+                    urls.append('/' + short_fname)
+                    try:
+                        new_graph = self.one_graph(xx, yy, y2, short_fname, subject, player_name)
+                        print('Player png', str(p_id), long_fname, 'RENEWED')
+                    except:
+                        print('failed to write player graph for', str(p_id), subject)
+                urls.append('/' + short_fname)
         return urls

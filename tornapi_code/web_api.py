@@ -6,7 +6,7 @@ import random
 
 class Tornapi:
 
-    def __init__(self, c):
+    def __init__(self, c, test_input):
         self.c = c  # db cursor
         self.count = [0, 0, 0]
         self.good_user_key = {}
@@ -16,27 +16,32 @@ class Tornapi:
         self.default_apikey = None
         self.api_is_enabled = True  # assume this and change it if necessary
         #
-        c.execute("""select default_apikey from admin""")
-        for row in c:
-            self.default_apikey = row[0]
-        #
-        c.execute("""select player_id,short_err,long_err,key  from apikeys""")
-        for row in c:
-            if row[2]:  # long-lasting error on this key
-                continue
-            if (3600 + row[1]) > int(time.time()):
-                continue
-            self.pid2ak[row[0]] = row[3]
-        #
-        c.execute("""select ignore,faction_id,player_id from factionwatch""")
-        for row in c:
-            ignore, faction_id, player_id = row
-            if ignore:
-                continue
-            if faction_id not in self.suggest_faction_key:
-                self.suggest_faction_key[faction_id] = []
-            if player_id in self.pid2ak:
-                self.suggest_faction_key[faction_id].append(player_id)
+        if test_input:
+            self.default_apikey = test_input[0]
+            self.pid2ak[test_input[0]] = test_input[1]
+            # self.suggest_faction_key[faction_id] = []
+        else:
+            c.execute("""select default_apikey from admin""")
+            for row in c:
+                self.default_apikey = row[0]
+            #
+            c.execute("""select player_id,short_err,long_err,key  from apikeys""")
+            for row in c:
+                if row[2]:  # long-lasting error on this key
+                    continue
+                if (3600 + row[1]) > int(time.time()):
+                    continue
+                self.pid2ak[row[0]] = row[3]
+            #
+            c.execute("""select ignore,faction_id,player_id from factionwatch""")
+            for row in c:
+                ignore, faction_id, player_id = row
+                if ignore:
+                    continue
+                if faction_id not in self.suggest_faction_key:
+                    self.suggest_faction_key[faction_id] = []
+                if player_id in self.pid2ak:
+                    self.suggest_faction_key[faction_id].append(player_id)
 
     def apistats(self):
         print("API stats: good, fail, error =", self.count)
@@ -101,9 +106,14 @@ class Tornapi:
 
         if not ak:
             return ["EPARM no key available"]
-        print("about to query ", what, repr(which), " for ", how)
 
-        apiurl = "https://api.torn.com/" + what + "/" + str(which) + "?selections=" + how + "&key=" + ak
+        if 16 == len(ak):
+            api_server = "https://api.torn.com/"
+        else:
+            api_server = "https://torn-proxy.com/"
+        print("about to query", what, repr(which), "for", how, "from", api_server)
+        apiurl = api_server + what + "/" + str(which) + "?selections=" + how + "&key=" + ak
+
         time.sleep(1)
         try:
             signal.alarm(20)
@@ -125,13 +135,19 @@ class Tornapi:
             print("faction crime data recieved as", r)
 
         if 'error' in data:
-            # handle Torn API error
+            # handle Torn API error either origin server or proxy
+            proxy_code = 0
+            proxy_error = "noerr"
+            #
             e = data['error']
             code = e['code']
             error_msg = e['error']
+            if "proxy" in data:
+                proxy_code = data["proxy_code"]
+                proxy_error = data["proxy_error"]
             et = int(time.time())
-            self.c.execute("""insert into error values (?,?,?,?, ?,?,?)""",
-                     (et, key_id, what, which, how, code, error_msg,))
+            self.c.execute("""insert into error values (?,?,?,?, ?,?,?, ?,?)""",
+                     (et, key_id, what, which, how, code, error_msg, proxy_code, proxy_error))
             # short key ban for 5  (7 if faction)
             # long key ban      1  2  10
             if (5 == code) or ((7 == code) and ('faction' == what)):
