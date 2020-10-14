@@ -12,6 +12,14 @@
 
 <h3>API key</h3>
 <p>
+Either your original Torn API key or a proxy key from torn-proxy.com may be used.
+<p>
+After entering a key it enters a queue and should begin use within about 30 minutes.
+It will appear still unknown during that time to this application because 
+this has no access to read the database the keys get put in (no leaking sensitive data).
+<p>
+Entering a wrong key will not remove the old key - use the delete function instead.
+<p>
 <form method="POST">
 {{ form.hidden_tag() }}
 

@@ -12,7 +12,7 @@ re_subject = re.compile('^[A-Z]+: [A-Z]+ [A-Z]+ [A-Z]+ [A-Z]+ [A-Z]+ [A-Z]+\s*$'
 #  postresql with ability to write to response table
 try:
     connect_str = "dbname='torndb_dev' user='devusr' host='localhost' " + \
-                  "password='some-simple-pw'"
+                  "password='PPPPPP'"
     # use our connection values to establish a connection
     conn = psycopg2.connect(connect_str)
     # create a psycopg2 cursor that can execute queries

@@ -43,7 +43,7 @@ app = Flask(__name__)
 
 app.config.from_pyfile('config.py')
 
-loghandler = logging.handlers.RotatingFileHandler('/home/peabrain/logs/tu0031.log', maxBytes=1024 * 1024, backupCount=10)
+loghandler = logging.handlers.RotatingFileHandler('/home/peabrain/logs/tu0036.log', maxBytes=1024 * 1024, backupCount=10)
 loghandler.setLevel(logging.INFO)
 app.logger.setLevel(logging.INFO)
 app.logger.addHandler(loghandler)
@@ -1119,8 +1119,71 @@ def chain_bonus(faction_player_t):
     c.close()
     conn.close()
 
-    return render_template("chain_bonus.html", faction_id=f_id, player={'name':name, 'pid':p_id, 'chain_bonus_list':bonus_list})
+    rodb = read_sqlite.Rodb()
+    faction_name = rodb.get_faction_name(f_id)
+    return render_template("chain_bonus.html", faction_id=f_id, faction_name=faction_name, player={'name':name, 'pid':p_id, 'chain_bonus_list':bonus_list})
 
+#=================================================================================
+@app.route("/defend_summary/<faction_player_role_t>", methods=['GET'])
+@app.route("/rhubarb/defend_summary/<faction_player_role_t>", methods=['GET'])
+def defend_summary(faction_player_role_t):
+    f_id = None
+    p_id = None
+    role = None
+    timestamp = None
+    given_hmac = None
+    df = None
+    right_now = int(time.time())
+
+    logged_in = False
+    try:
+        u = current_user.username
+        logged_in = True
+    except:
+        pass
+
+    # what page is this meant to produce, attack or defend?
+    re_object = combat_token.match(faction_player_role_t)
+    if re_object:
+        f_id = re_object.group(1)
+        p_id = re_object.group(2)
+        role = re_object.group(3)
+        timestamp = re_object.group(4)
+        given_hmac = re_object.group(5)
+    else:
+        app.logger.info('in defend_summary RE did not match URL')
+        return render_template("bad_graph_request.html")
+
+    # calc correct hmac
+    display_selection = (str(f_id) + '-' +  str(p_id) + role + str(timestamp) ).encode("utf-8")
+    hmac_hex = hmac.new(hmac_key, display_selection, digestmod=hashlib.sha1).hexdigest()
+
+    # test for correct hmac
+    if not hmac.compare_digest(hmac_hex, given_hmac):
+        return render_template('message.html', message='link has been altered; cannot use it', logged_in=logged_in)
+    # test for acceptable timestamp
+    if ((int(timestamp) + (86400 * 7)) < right_now):
+        return render_template('message.html', message='too old; link has expired', logged_in=logged_in)
+
+    # no time limit on defends other than the 28 days of storage
+    parm = (int(f_id), int(p_id),)
+    conn = sqlite3.connect('file:/var/torn/readonly_db?mode=ro', uri=True)
+    c = conn.cursor()
+    if 'defsum' == role: # only allowed role
+        c.execute("select count(att_id) as num,att_name,att_id,def_name,def_id from combat_events where fid=? and def_id=? and outcome like '%lost' group by att_id order by att_id", parm)
+    else:
+        c.close()
+        conn.close()
+        return render_template("bad_graph_request.html")
+
+    defend_lines = []
+    safe_text = dehtml.Dehtml()
+    for row in c:
+        defend_lines.append(row)
+    c.close()
+    conn.close()
+    
+    return render_template("defend_summary.html", dl=defend_lines)
 #=================================================================================
 @app.route("/faction_attack/<faction_player_role_t>", methods=['GET'])
 @app.route("/rhubarb/faction_attack/<faction_player_role_t>", methods=['GET'])
@@ -1248,6 +1311,63 @@ def enemy_watch():
     form.timerange_id.choices = [(t.id, time.strftime("%A %Y-%m-%d %H:%M",time.gmtime(t.tstart)) + ' to ' + time.strftime("%A %Y-%m-%d %H:%M",time.gmtime(t.tend))) for t in Timerange.query.filter_by(f_id = f_id).all()]
     return render_template('enemy_watch.html', title='Enemy Watch', form=form, now=int(time.time()))
 
+#=================================================================================
+@app.route("/rhubarb/enemy_watch_faction", methods=['GET','POST'])
+@app.route("/enemy_watch_faction", methods=['GET','POST'])
+@login_required
+def enemy_watch_faction():
+
+    form = EnemyForm()
+    rodb = read_sqlite.Rodb()
+    faction_sum = rodb.get_faction_for_player(current_user.username)
+    f_id = int(faction_sum['fid'])
+
+    # if form.validate_on_submit():
+    if request.method == 'POST':
+        try:
+            enemy = request.form['enemy']
+            time_id = request.form['timerange_id']
+        except:
+            app.logger.info('error reading from enemy form')
+            return render_template('message.html', message='something wrong with enemy selection', logged_in=True)
+
+        wanttime = Timerange.query.filter_by(id = time_id).first()
+        if not wanttime:
+            # unknown time id in postgres
+            return render_template('message.html', message='timerange selection not recognised', logged_in=True)
+        if not wanttime.f_id == f_id:
+            return render_template('message.html', message='timerange selection looks invalid for this faction', logged_in=True)
+
+        #  get details of taget faction
+        enemy_factions = {}  # count of attacks by us on other factions
+        all_enemy_faction_attacks = rodb.get_targeted_chain(f_id, enemy, wanttime.tstart, wanttime.tend)  # specific faction, specific time
+        player_items = []
+        total = 0
+        for apid in all_enemy_faction_attacks:
+            # XXX not needed ? # link to next pages (with HMAC)
+            # selector = str(apid) + '-' + str(enemy) + '-' + str(wanttime.id) + '-'  + str(int(time.time()))
+            # hmac_hex = hmac.new(hmac_key, selector.encode("utf-8"), digestmod=hashlib.sha1).hexdigest()
+            player_items.append( [all_enemy_faction_attacks[apid][2], all_enemy_faction_attacks[apid][1], all_enemy_faction_attacks[apid][0]] )
+            total += all_enemy_faction_attacks[apid][2]
+
+        return render_template('enemy_watch_faction2.html', player_items=player_items, enemy_faction_name=rodb.get_faction_name(enemy), total=total)
+
+    # show form before submission
+    enemy_factions = {}  # count of attacks by us on other factions
+    all_enemy_faction_attacks = rodb.get_targeted_chain(f_id, None, 0, 2100000000)  # not specific to faction, all time
+    for x in all_enemy_faction_attacks.keys():
+        # only bother with worthwhile numbers
+        if x:
+            if all_enemy_faction_attacks[x] >= 50:
+                enemy_factions[x] = all_enemy_faction_attacks[x]
+
+    sorted_ef = sorted(enemy_factions.items(), key=lambda kv: kv[1], reverse=True)
+    enemy_factions_counted = list(sorted_ef)
+
+    form.enemy.choices = [(ek[0],  rodb.get_faction_name(ek[0]) + '[' + str(ek[0]) + ']') for ek in enemy_factions_counted]
+    form.timerange_id.choices = [(t.id, time.strftime("%A %Y-%m-%d %H:%M",time.gmtime(t.tstart)) + ' to ' + time.strftime("%A %Y-%m-%d %H:%M",time.gmtime(t.tend))) for t in Timerange.query.filter_by(f_id = f_id).all()]
+
+    return render_template('enemy_watch_faction.html', title='Enemy Watch Faction', form=form, enemy_factions_counted=enemy_factions_counted, now=int(time.time()))
 #=================================================================================
 @app.route("/enemy_log/<player_t_t_hmac>", methods=['GET'])
 @app.route("/rhubarb/enemy_log/<player_t_t_hmac>", methods=['GET'])
@@ -1410,7 +1530,8 @@ def delete_faction_enemies():
             return redirect('/rhubarb/enemy_watch')
     # - - - - - - -  POST section
 
-    return render_template('delete_faction_enemies.html', title='Enemies', form=form, f_id=f_id)
+    faction_name = rodb.get_faction_name(f_id)
+    return render_template('delete_faction_enemies.html', title='Enemies', form=form, f_id=f_id, faction_name=faction_name)
 #=================================================================================
 @app.route("/add_faction_enemies/", methods=['GET','POST'])
 @app.route("/rhubarb/add_faction_enemies/", methods=['GET','POST'])
@@ -1451,7 +1572,8 @@ def add_faction_enemies():
             return redirect('/rhubarb/enemy_watch')
     # - - - - - - -  POST section
 
-    return render_template('add_faction_enemies.html', title='Enemies', form=form, f_id=f_id)
+    faction_name = rodb.get_faction_name(f_id)
+    return render_template('add_faction_enemies.html', title='Enemies', form=form, f_id=f_id, faction_name=faction_name)
 #=================================================================================
 @app.route("/define_timerange/<t_to_t>", methods=['GET','POST'])
 @app.route("/rhubarb/define_timerange/<t_to_t>", methods=['GET','POST'])
@@ -1503,7 +1625,9 @@ def define_timerange(t_to_t):
     end_block.append( [ 'plus 1 minute', tend+60, time.strftime("%A %Y-%m-%d %H:%M",time.gmtime(tend+60)) ] )
     end_block.append( [ 'minus 1 minute', tend-60, time.strftime("%A %Y-%m-%d %H:%M",time.gmtime(tend-60)) ] )
 
-    return render_template('define_timerange.html', title='Timerange', form=form, start_block=start_block, end_block=end_block, tstart=tstart, tend=tend, f_id=f_id)
+    rodb = read_sqlite.Rodb()
+    faction_name = rodb.get_faction_name(f_id)
+    return render_template('define_timerange.html', title='Timerange', form=form, start_block=start_block, end_block=end_block, tstart=tstart, tend=tend, f_id=f_id, faction_name=faction_name)
 
 #=================================================================================
 @app.route("/chain_reports", methods=['GET'])
@@ -1527,7 +1651,6 @@ def chain_reports():
             end_text = time.strftime("%A %Y-%m-%d %H:%M",time.gmtime(chain.tend))
         else:
             end_text = time.strftime("%A %Y-%m-%d %H:%M",time.gmtime(chain.et))
-        # XXX needs to use the HMAC style link
         # calc correct hmac
         right_now = int(time.time())
         chain_selection_pre =  str(f_id) + '-chain-' + str(chain.tstart) + '-' + str(right_now)
@@ -1539,7 +1662,8 @@ def chain_reports():
         else:
             chains_unf.append(stage)
 
-    return render_template('chain_reports.html', title='Chain reports', chains_fin=chains_fin, chains_unf=chains_unf, f_id=f_id)
+    faction_name = rodb.get_faction_name(f_id)
+    return render_template('chain_reports.html', title='Chain reports', chains_fin=chains_fin, chains_unf=chains_unf, f_id=f_id, faction_name=faction_name)
 #=================================================================================
 @app.route("/chain_details/<fid_tstart_timestamp_hmac>", methods=['GET'])
 @app.route("/rhubarb/chain_details/<fid_tstart_timestamp_hmac>", methods=['GET'])
@@ -1594,10 +1718,11 @@ def chain_details(fid_tstart_timestamp_hmac):
         who_inactive[p_mem.player_id] = p_mem.player_name + '[' + str(p_mem.player_id) + ']'
 
     # bonus
+    right_now = int(time.time())
     bonus_list = []
     bonus_table = Bonus_events.query.filter_by(pg_chain_id = ch.pg_chain_id).all()
     for bonus in bonus_table:
-        if (now - bonus.et) > 3600:
+        if (right_now - bonus.et) > 3600:
             # ok to show attacker name
             try:
                 stage = [ who_inactive[bonus.att_id] ]
@@ -1628,7 +1753,9 @@ def chain_details(fid_tstart_timestamp_hmac):
             if p_score.actions:
                 del who_inactive[p_score.player_id]
 
-    return render_template('chain_details.html', title='Chain details', f_id=f_id, outline=outline, scoreboard_at=scoreboard_at, inactive = who_inactive, bonus = bonus_list)
+    rodb = read_sqlite.Rodb()
+    faction_name = rodb.get_faction_name(f_id)
+    return render_template('chain_details.html', title='Chain details', f_id=f_id, outline=outline, scoreboard_at=scoreboard_at, inactive = who_inactive, bonus = bonus_list, faction_name=faction_name)
 #=================================================================================
 @app.route("/chain_scoreboard/<fid_tstart_timestamp_hmac>", methods=['GET'])
 @app.route("/rhubarb/chain_scoreboard/<fid_tstart_timestamp_hmac>", methods=['GET'])
@@ -1670,18 +1797,18 @@ def chain_scoreboard(fid_tstart_timestamp_hmac):
     # hyperlinks for ordering table
     hyper_seed = [ '/rhubarb/chain_scoreboard/' + fid_tstart_timestamp_hmac.rstrip('abcdefghijklmnopqrstuvwxyz') , 'Sort']
     hyper = []
-    for nh in range(11):
-        hyper.append( hyper_seed[:] ) # copy makes these separate data items unlike  [...] * 11
+    for nh in range(12):
+        hyper.append( hyper_seed[:] ) # copy makes these separate data items unlike  [...] * N
     table_column = {}
     nh = 0
     table_control = [['act','actions'], ['att','attacked'], ['hos','hospitalized'], ['mug','mugged'], ['res','respect'],
-            ['ast','att_stale'], ['los','lost'], ['ate','att_escape'], ['dst','def_stale'], ['def','defend'], ['des','def_escape']]
+            ['ast','att_stale'], ['los','lost'], ['ate','att_escape'], ['dst','def_stale'], ['def','defend'], ['des','def_escape'], ['arh','perhit']]
     for cols in table_control:
         table_column[cols[0]] = cols[1]
-        hyper[nh][0] += cols[0] + 'd'
+        hyper[nh][0] += cols[0] + 'd'  # string addition to each column e.g. 'resd' to the end of the URL
         nh += 1
 
-    # get from ORM the chain_player_summary for this chain
+    # get from ORM data on this chain
     # outline
     tstart_text = time.strftime("%Y-%m-%d %H:%M",time.gmtime(ch.tstart))
     if ch.tend:
@@ -1698,10 +1825,40 @@ def chain_scoreboard(fid_tstart_timestamp_hmac):
     for p_mem in our_players:
         who[p_mem.player_id] = p_mem.player_name + '[' + str(p_mem.player_id) + ']'
 
+
+    # get from ORM the chain_player_summary for this chain
+    bonus_list = []
+    bonus_table = Bonus_events.query.filter_by(pg_chain_id = ch.pg_chain_id).all()
+    for bonus in bonus_table:
+        bonus_list.append([bonus.att_id, bonus.num_respect])
+
+    # get from ORM the chain_player_summary for this chain
     summary = []
+    pid2av_respect = {}
+    pid2exp = {}
     player_scores = Chain_player_sum.query.filter_by(pg_chain_id = ch.pg_chain_id).all()
     for p_score in player_scores:
+        # average respect scores to be computed here
+        total_respect = p_score.respect   # made by adding floats then coerced to int
+        num_actions = p_score.actions
+        # amend by subtracting bonuses
+        for bonus in bonus_list:
+            if bonus[0] == p_score.player_id:
+                total_respect -= bonus[1]
+                num_actions -= 1
+        # respect per action (division)
+        res_explanation = ''
+        if num_actions >= 2:
+            av_respect = total_respect / num_actions
+            res_explanation = str(total_respect) + '/' + str(num_actions)
+        elif num_actions == 1:
+            av_respect = total_respect
+        else:
+            av_respect = 0.0
         summary.append(p_score)
+        # 2 dicts passed along with the object data but not part of it
+        pid2av_respect[p_score.player_id] = str(av_respect)
+        pid2exp[p_score.player_id] = res_explanation
 
     # SORTING depends on a parameter passed to the route
     orderparm_s = orderparm[:3] # first 3 chars key the table_colum dict
@@ -1716,12 +1873,28 @@ def chain_scoreboard(fid_tstart_timestamp_hmac):
     else:
         reverse = False
     # need to sort on the right property
-    try:
-        summary = sorted(summary, key=lambda one: getattr(one, table_column[orderparm_s]), reverse=reverse)
-    except:
-        app.logger.info('sort failed - maybe bad orderparm (%s) supplied', orderparm)
+    if orderparm_s == 'arh':
+        # sorting by AverageRespectPer-Hit, which is outside the summary (array of objects)
+        # copy dict into a list that's sorted
+        sorted_av_respect_per_hit = sorted(pid2av_respect.items(), key=lambda kv: kv[1], reverse=reverse)
+        # make a replacement summary list in the new order
+        position = {}
+        n = 0
+        for x in summary:
+            position[x.player_id] = n
+            n += 1
+        new_summary = []
+        for x in sorted_av_respect_per_hit:
+            new_summary.append( summary[position[x[0]]] )
+        summary = new_summary
+    else:
+        # sorting by one of the properies in the object
+        try:
+            summary = sorted(summary, key=lambda one: getattr(one, table_column[orderparm_s]), reverse=reverse)
+        except:
+            app.logger.info('sort failed - maybe bad orderparm (%s) supplied', orderparm)
 
-    # and decorate
+    # decorate the data with a rank (n) and readable name (who)
     deco = []
     n=1
     for x in summary:
@@ -1730,7 +1903,9 @@ def chain_scoreboard(fid_tstart_timestamp_hmac):
         deco.append( [n, who[x.player_id] , x])
         n += 1
 
-    return render_template('chain_scoreboard.html', title='Chain scoreboard', f_id=f_id, outline=outline, hyper=hyper, deco=deco)
+    rodb = read_sqlite.Rodb()
+    faction_name = rodb.get_faction_name(f_id)
+    return render_template('chain_scoreboard.html', title='Chain scoreboard', f_id=f_id, outline=outline, hyper=hyper, deco=deco, faction_name=faction_name, pid2av_respect=pid2av_respect, pid2exp=pid2exp)
 #=================================================================================
 def test_strength(pw):
     if len(pw) < 8:

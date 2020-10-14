@@ -5,7 +5,7 @@ import hmac
 import os
 import dehtml
 
-oc_recent_window = 604800
+oc_recent_window = 28 * 86400
 
 def seconds_text(s):
     if s < 180:
@@ -52,6 +52,10 @@ class Rodb:
         for row in self.c:
             self.pid2n[str(row[0])] = row[1] + '[' + str(row[0]) + ']'
 
+        self.know_who_in_what = False
+        self.know_faction_names = False
+        self.faction_id2name = {}
+
 #=================================================================================
     def recent_big_losses(self,fid):
         rbl = []
@@ -72,6 +76,51 @@ class Rodb:
                 rbl.append(combat)
 
         return rbl
+#=================================================================================
+    def get_faction_name(self, fid):
+        if not self.know_faction_names:
+            self.c.execute("""select f_id,f_name from faction_id2name""")
+            for row in self.c:
+                self.faction_id2name[row[0]] = row[1]  # key is INT
+            self.know_faction_names = True
+
+        if int(fid) in self.faction_id2name:
+            return self.faction_id2name[int(fid)]
+        return "?unknown-faction-name?"
+#=================================================================================
+    def get_fid_for_players(self, pid):
+        if not self.know_who_in_what:
+            self.c.execute("""select player_id,fction_id from who-in_what""")
+            for row in self.c:
+                self.who_in_what[row[0]] = row[1]
+            self.know_who_in_what = True
+        return self.who_in_what
+#=================================================================================
+    def get_targeted_chain(self, att_fid, def_fid, tstart, tend):
+        out = {}
+        if def_fid:
+            # query a specific faction
+            self.c.execute("select att_id, att_name, count(att_name) as c from combat_events where"""
+            """ combat_events.fid = ?"""
+            """ and ? = (select faction_id from who_in_what where att_id = player_id)"""
+            """ and ? = (select faction_id from who_in_what where def_id = player_id)"""
+            """ and outcome like '%(+%'"""
+            """ and combat_events.et >= ?  and combat_events.et <= ?"""
+            """ group by att_name order by c desc""", (att_fid, att_fid, def_fid, tstart, tend,))
+            for row in self.c:
+                out[row[0]] = row
+        else:
+            # no specific faction
+            self.c.execute("select who_in_what.faction_id, count(who_in_what.faction_id) as c from combat_events join who_in_what on who_in_what.player_id=def_id  where"""
+            """ combat_events.fid = ?"""
+            """ and ? = (select faction_id from who_in_what where att_id = player_id)"""
+            """ and outcome like '%(+%'"""
+            """ and combat_events.et >= ?  and combat_events.et <= ?"""
+            """ group by who_in_what.faction_id order by c desc""", (att_fid, att_fid, tstart, tend,))
+            for row in self.c:
+                out[row[0]] = row[1]
+
+        return out
 #=================================================================================
     def getkey(self):
         return self.hmac_key
@@ -126,7 +175,7 @@ class Rodb:
 
         self.c.execute("""select count(att_id) as c,att_name,att_id """ +
         """from combat_events """ +
-        """where ? = (select faction_id from playerwatch where playerwatch.player_id = combat_events.att_id) """ +
+        """where fid = ? """ +
         """and combat_events.def_id = ? """ +
         """and combat_events.et > ? """ +
         """and combat_events.et < ? """ +
@@ -262,10 +311,13 @@ class Rodb:
             hmac_hex_hist = hmac.new(self.hmac_key, flask_parm, digestmod=hashlib.sha1).hexdigest()
             flask_parm = ( str(f_id) + '-' + str(crime_type) + '-' +  str(right_now) ).encode("utf-8")
             hmac_hex_short = hmac.new(self.hmac_key, flask_parm, digestmod=hashlib.sha1).hexdigest()
-            faction_sum['oc_table'][crime_type] =  [ oc_name[crime_type],
+            try:
+                faction_sum['oc_table'][crime_type] =  [ oc_name[crime_type],
                          '/rhubarb/faction_oc_history/' + str(f_id) + '-' + str(crime_type) + '-' + str(right_now) +  '-history-' + hmac_hex_hist,
                          '/rhubarb/faction_oc_history/' + str(f_id) + '-' + str(crime_type) + '-' + str(right_now) +  '-' +  str(oc_et[crime_type]) + '-' + hmac_hex_short,
                          oc_timestring[crime_type] ]
+            except:
+                print("problem processing OC data for", faction_sum['fid'])
         return faction_sum
 
 #=================================================================================
@@ -552,7 +604,7 @@ class Rodb:
         hmac_hex_hist = hmac.new(self.hmac_key, flask_parm, digestmod=hashlib.sha1).hexdigest()
         events = '/rhubarb/faction_oc_history/' + str(u) + '-0-' + str(page_time) +  '-history-' + hmac_hex_hist
 
-        # attacknews
+        # attack ad defend
         attacklinks = {}
         flask_parm = (str(f_id) + '-' +  str(p_id) + 'attack' + str(page_time) ).encode("utf-8")
         hmac_hex = hmac.new(self.hmac_key, flask_parm, digestmod=hashlib.sha1).hexdigest()
@@ -561,6 +613,11 @@ class Rodb:
         flask_parm = (str(f_id) + '-' +  str(p_id) + 'defend' + str(page_time) ).encode("utf-8")
         hmac_hex = hmac.new(self.hmac_key, flask_parm, digestmod=hashlib.sha1).hexdigest()
         attacklinks[str(flask_parm)[2:-1] + '-' +  hmac_hex]  = 'defend'
+        #
+        defsumlinks = {}
+        flask_parm = (str(f_id) + '-' +  str(p_id) + 'defsum' + str(page_time) ).encode("utf-8")
+        hmac_hex = hmac.new(self.hmac_key, flask_parm, digestmod=hashlib.sha1).hexdigest()
+        defsumlinks[str(flask_parm)[2:-1] + '-' +  hmac_hex]  = 'defsum'
 
         js_graphs = []
         # link to flask js graphs (parameters protected by HMAC)
@@ -610,7 +667,8 @@ class Rodb:
         player = {'name':name, 'u':u, 'level':level, 'crime_num':crime_num,
                  'crime_recency':crime_recency,  'most_days_idle':most_days_idle,
                  'stats':stats, 'age_of_data':age_of_data, 'oc':all_my_oc, 'events':events,
-                 'attacklinks':attacklinks, 'js_graphs':js_graphs, 'img_graphs':img_graphs,
+                 'attacklinks':attacklinks, 'defsumlinks':defsumlinks,
+                 'js_graphs':js_graphs, 'img_graphs':img_graphs,
                  'got_drug_bool':got_drug_bool, 'oc_calc':oc_calc,
                  'chain_bonus_count':chain_bonus_count,
                  'chain_bonus_link':chain_bonus_link}

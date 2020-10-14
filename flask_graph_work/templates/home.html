@@ -86,7 +86,10 @@ settings (above) is where you can do this.
 	<a href="{{ player.events }}">OC history</a>
          <br/>
          {% for key in player.attacklinks.keys() %}
-	 <a href="/rhubarb/faction_attack/{{key}}">{{player.attacklinks[key]}}</a></br>
+	     <a href="/rhubarb/faction_attack/{{key}}">{{player.attacklinks[key]}}</a></br>
+         {% endfor %}
+         {% for key in player.defsumlinks.keys() %}
+	     <a href="/rhubarb/defend_summary/{{key}}">{{player.defsumlinks[key]}}</a></br>
          {% endfor %}
          {% if player.chain_bonus_count %}
 	 <a href="/rhubarb/chain_bonus/{{player.chain_bonus_link}}">chain bonus x{{player.chain_bonus_count}}</a></br>

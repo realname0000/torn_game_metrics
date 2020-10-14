@@ -6,7 +6,7 @@
 
 <a href="/rhubarb/home">home</a>
 
-<h2>These are chains for {{ f_id }}.</h2>
+<h2>These are chains for {{faction_name}}[{{f_id}}].</h2>
 <p>
 <ol>
 {% for item in chains_unf %}
@@ -28,5 +28,9 @@
 
 <p>
 <a href="/rhubarb/enemy_watch">Faction attacks on enemies</a> (excluding the last hour)
+
+<p>
+<a href="/rhubarb/enemy_watch_faction">Faction attacks on factions</a>
+
 </body>
 </html>
