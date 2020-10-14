@@ -56,7 +56,7 @@ for r in rows:
 # delete old entries from these tables
 c_pg.execute("""delete from challenge where expires < %s""", ((now-7200),) )
 c_pg.execute("""delete from response where et < %s""", ((now-7200),) )
-c_pg.execute("""delete from l_user where registered < %s and confirmed = %s""", ((now-86400),0,) )
+c_pg.execute("""delete from l_user where registered < %s and confirmed = %s""", ((now-7200),0,) )
 
 conn.commit()
 c_pg.close()
