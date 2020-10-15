@@ -1,0 +1,19 @@
+<html>
+<head>
+</head>
+<body>
+
+<a href="/rhubarb/faction_ov">Faction overview</a>
+
+<h2>Enemy Watch Faction</h2>
+
+<h3>Total hits: {{total}}</h3>
+
+<ol>
+{% for x in player_items %}
+<li>{{x[0]}} hits by {{x[1]}}[{{x[2]}}] on {{enemy_faction_name}}</li>
+{% endfor %}
+</ol>
+
+</body>
+</html>

@@ -1,0 +1,16 @@
+<html>
+<head>
+<title>Successful defends ... "but lost" </title>
+</head>
+<body>
+    <h1>Successful defends ... "but lost"</h1>
+    <p>
+    Updated every 30 mins, records kept 28 days
+    <p>
+    <ul>
+    {% for item in dl %}
+    <li>{{ item[0]}} of {{ item[1] }}[{{ item[2] }}] lost to {{ item[3] }}[{{ item[4] }}]</li>
+    {% endfor %}
+    </ul>
+</body>
+</html>

@@ -69,7 +69,7 @@ CREATE TABLE error (
         which          int,
         how            text,
         code           int,
-        error_msg      text);
+        error_msg      text, proxy_code int not NULL default 0, proxy_error text not NULL default "noerr");
 CREATE TABLE pstats (
         et             int not NULL,
         api_id         int not NULL,
@@ -153,7 +153,7 @@ CREATE TABLE factionconsumption (
 , xanax int not NULL default 0, energy_refill int not null default 0);
 CREATE TABLE who_in_what (
         player_id       int primary key UNIQUE not NULL,
-        faction_id      int not NULL);
+        faction_id      int not NULL, et int not NULL  default 1601800000);
 CREATE TABLE long_term_bonus (
 fid          int not NULL,
 evid         int not NULL,
@@ -178,4 +178,8 @@ CREATE TABLE chain (
         tend            int not NULL default 0,
         cid             int not NULL default 0,
         respect         text not NULL default "0" , cooldown int not NULL default 0);
+CREATE TABLE faction_id2name (
+et  int not NULL,
+f_id int primary key UNIQUE not NULL, 
+f_name text not NULL);
 /* No STAT tables available */

@@ -1,0 +1,20 @@
+<html>
+<head>
+</head>
+<body>
+
+<a href="/rhubarb/faction_ov">Faction overview</a>
+
+<h2>Enemy Watch Faction</h2>
+
+<form method="POST">
+	{{ form.hidden_tag() }}
+
+	Choose enemy<br /> {{ form.enemy() }}
+	Choose time range<br /> {{ form.timerange_id() }}
+
+	<button type="submit" value="submit" name="submit">Go</button>
+</form>
+
+</body>
+</html>
