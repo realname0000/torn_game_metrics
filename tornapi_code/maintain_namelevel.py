@@ -33,7 +33,7 @@ c_pg.close()
 
 
 # ===================
-# # open sqlite and update it with data gathered above # # 
+# # open sqlite and update it with data gathered above # #
 
 conn2 = sqlite3.connect('/var/torn/torn_db')
 c2 = conn2.cursor()
