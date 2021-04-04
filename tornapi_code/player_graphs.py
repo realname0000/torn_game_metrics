@@ -43,7 +43,7 @@ class Draw_graph:
 
     def player(self, pid2name, p_id):
         urls = []
-        for subject in ('nerve', 'drugs', 'total_crime', 'peoplebusted', 'jail', 'organisedcrimes'):
+        for subject in ('nerve', 'drugs', 'total_crime', 'peoplebusted', 'jail', 'organisedcrimes', 'hospital', 'overdose'):
             xx = []
             yy = []
             y2 = []
@@ -101,6 +101,22 @@ class Draw_graph:
                     yy.append(int(row[1]))
                     if row[1]:
                         nonzero_data = 1
+            elif 'hospital' == subject:
+                self.c.execute("""select et,hosp from pstats where player_id=? order by et""",(p_id,))
+                for row in self.c:
+                    last_x = int(row[0])
+                    xx.append(datetime.date.fromtimestamp(int(row[0])))
+                    yy.append(int(row[1]))
+                    if row[1]:
+                        nonzero_data = 1
+            elif 'overdose' == subject:
+                self.c.execute("""select et,od from pstats where player_id=? order by et""",(p_id,))
+                for row in self.c:
+                    last_x = int(row[0])
+                    xx.append(datetime.date.fromtimestamp(int(row[0])))
+                    yy.append(int(row[1]))
+                    if row[1]:
+                        nonzero_data = 1
             else:
                 print("bad graph name", subject, p_id)
                 continue
@@ -119,7 +135,6 @@ class Draw_graph:
                 mtime = 0
                 try:
                     mtime = os.stat(long_fname).st_mtime
-                    print('Player png', str(p_id), long_fname, 'EXISTS')
                 except:
                     try:
                         # new file does not exist, test for the old one
@@ -129,17 +144,13 @@ class Draw_graph:
                         mtime = os.stat(old_long_fname).st_mtime
                         # older graph exists
                         os.link(old_long_fname, long_fname) # reuse the old file
-                        print('Player png', str(p_id), old_lin_name, long_fname, 'SHOULD LINK THEM')
                     except:
                         # old and new files both missing
-                        print('Player png', str(p_id), old_long_fname, long_fname, 'OLD+NEW MISSING')
                         pass
                 if mtime <= last_x:
-                    print('Player png', str(p_id), long_fname, 'NEEDS RENEWAL', mtime, last_x)
                     urls.append('/' + short_fname)
                     try:
                         new_graph = self.one_graph(xx, yy, y2, short_fname, subject, player_name)
-                        print('Player png', str(p_id), long_fname, 'RENEWED')
                     except:
                         print('failed to write player graph for', str(p_id), subject)
                 urls.append('/' + short_fname)

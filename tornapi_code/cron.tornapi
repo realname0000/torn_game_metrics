@@ -1,0 +1,13 @@
+14,44 * * * * bin/driver
+29 1,7,13,19 * * * bin/driver2
+### 50,05,25,35 * * * * bin/driver3 # finding inactive faction leaders
+#
+*/3 * * * * bin/tornapi_challenge_responses.py
+0 5 * * * find /var/torn/ -type f -mtime +7 \( -name 'auto_*' -o -name 'web.*.tar' -o -name 'web.*.tgz' \) -ls -delete
+1 6 * * * find /var/torn/ -type f -mtime +7 \( -name 'code.*.tgz' -o -name 'postgres.*.tgz' -o -name 'experiment.*.tgz' \) -ls -delete
+0 7 * * * find logs/ -type f -mtime +60 -delete; find logs/ -type f -mtime +7 -size 0c -delete
+0 8 * * * find /var/torn/spool/collect -type f -mtime +1 -delete
+30 23 * * * tar czf /var/torn/code.$(date +\%s).tgz bin
+10 2 * * * cd ~peabrain && tar czf /var/torn/experiment.$(date +\%s).tgz experimental
+20 2 * * 3,6 cd ~postgres && tar czf /var/torn/postgres.$(date +\%s).tgz backups
+30 2 * * 2,5 cd /srv/www/vhosts/tornutopia.com && tar czf /var/torn/web.$(date +\%s).tgz --exclude=./faction --exclude=./intro --exclude=./twof --exclude=./player  ./

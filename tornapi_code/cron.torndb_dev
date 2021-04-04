@@ -1,0 +1,6 @@
+29 * * * * bin/expire_cache_tables.py
+*/5 * * * * bin/driver
+0 9,21 * * *  bin/set_enemy_names.py
+0 1 * * * find logs/ -type f -mtime +3 -size 0c -delete
+0 2 * * * find logs/ BAK/  -type f -mtime +14 -delete
+16 2  * * * tar czf BAK/torndb_dev_bin.$(date +\%s).tgz bin

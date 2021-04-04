@@ -42,7 +42,7 @@ conn2.commit()
 now = int(time.time())
 
 # query from API, replace in sqlite
-web=web_api.Tornapi(c2) # use this one object throughout
+web=web_api.Tornapi(c2, None) # use this one object throughout
 
 for m in enemy_tornid:
     result = web.torn('user', m, 'basic')

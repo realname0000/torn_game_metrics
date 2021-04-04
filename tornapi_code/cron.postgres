@@ -1,0 +1,2 @@
+12 6,14,22 * * * bin/mk_backup
+0 15 * * * find backups -type f -mtime +14 -delete

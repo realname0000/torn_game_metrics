@@ -1,6 +1,0 @@
-15,45 * * * * bin/driver
-30 4 * * * bin/driver2
-0 5 * * * find /var/torn/ -type f -mtime +21 \( -name 'auto_*' -o -name 'code.*' -o -name 'web.*.tar'  \) -delete
-0 6 * * * find logs/ -type f -mtime +60 -delete
-30 23 * * * tar cf /var/torn/code.$(date +\%s).tar bin
-30 6 * * 6 cd /srv/www/htdocs && tar cf /var/torn/web.$(date +\%s).tar --exclude=./faction --exclude=./intro --exclude=./player  ./

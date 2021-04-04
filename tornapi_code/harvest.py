@@ -13,8 +13,8 @@ player_crime_timestep = 21600
 faction_basic_timestep = 21600
 level_timestep = 86400
 
-re_named = re.compile('^<a href *= *"http://www.torn.com/profiles.php.XID=(\d+)">([()=\w-]+)</a> (\w+) <a href = "http://www.torn.com/profiles.php.XID=(\d+)"> *([()=\w-]+)<.a>([\w, +().-]*)$')
-re_someone = re.compile('^Someone (\w+) <a href *= *"http://www.torn.com/profiles.php.XID=(\d+)">([\w-]+)<.a>([\w, +().-]*)$')
+re_named = re.compile('^<a href *= *"http://www.torn.com/profiles.php.XID=(\d+)">([()=\w-]+)</a> (\w+) <a href = "http://www.torn.com/profiles.php.XID=(\d+)"> *([()=\w-]+)<.a>([\w, +().-]*)')
+re_someone = re.compile('^Someone (\w+) <a href *= *"http://www.torn.com/profiles.php.XID=(\d+)">([\w-]+)<.a>([\w, +().-]*)')
 re_faction_used = re.compile('^<a href *= *"http://www.torn.com/profiles.php.XID=(\d+)">[()\w-]+</a> (used|filled) one of the faction.s (.*) items\.$')
 re_faction_energy = re.compile('^<a href *= *"?http://www.torn.com/profiles.php.XID=(\d+)"?>[()\w-]+</a> used 25 of the faction.s points to refill their energy\.$')
 
@@ -187,15 +187,16 @@ def get_faction(web, f_id, oc_interval):
         usage_events_known = []
         c.execute("""select event_id from factionconsumption where faction_id=?""",(f_id,))
         for row in c:
-            usage_events_known.append(int(row[0]))
+            usage_events_known.append(str(row[0]))
         result = web.torn('faction', f_id, 'armorynewsfull') # also  + full
         if 'OK' == result[0]:
             arm_news = result[1]['armorynews']
+            print("Arm News:", arm_news)
             for arm_item in arm_news:
 # {'timestamp': 1548061119, 'news': '<a href = "http://www.torn.com/profiles.php?XID=456428">Kill-For-Glory</a> used one of the faction\'s Bottle of Beer items.'}
                 parts_u = re_faction_used.match(arm_news[arm_item]['news'])
                 if parts_u:
-                    if not int(arm_item) in usage_events_known:
+                    if not arm_item in usage_events_known:
                         et = arm_news[arm_item]['timestamp']
                         #
                         what_used = {'neumune':0, 'empty_blood':0, 'morphine':0, 'full_blood':0, 'first_aid':0, 'small_first_aid':0, 'bottle_beer':0, 'xanax':0, 'energy_refill':0}
@@ -220,7 +221,7 @@ def get_faction(web, f_id, oc_interval):
                     continue # next
                 parts_eu = re_faction_energy.match(arm_news[arm_item]['news'])
                 if parts_eu:
-                    if not int(arm_item) in usage_events_known:
+                    if not arm_item in usage_events_known:
                         et = arm_news[arm_item]['timestamp']
                         what_used = {'neumune':0, 'empty_blood':0, 'morphine':0, 'full_blood':0, 'first_aid':0, 'small_first_aid':0, 'bottle_beer':0, 'xanax':0, 'energy_refill':0}
                         what_used['energy_refill'] = 1
@@ -654,6 +655,7 @@ def refresh_faction_membership():
             else:
                     print("Not found faction for ", need_faction, result)
         if replace_count > 300:
+            print(" = = = = = = = = = = Limiting user profile calls to api")
             break
     conn.commit()
 

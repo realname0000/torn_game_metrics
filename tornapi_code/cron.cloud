@@ -1,0 +1,2 @@
+10 3  * * 0 umask 077 && cd /etc/ && tar czf /var/torn/etc-apache2.$(date +\%s).tgz  --exclude=apache2/ssl.key apache2
+0 4 * * 0 find /var/torn/ -type f -mtime +7  -name 'etc-apache2.*.tgz' -ls -delete
