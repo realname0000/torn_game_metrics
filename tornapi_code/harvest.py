@@ -13,8 +13,8 @@ player_crime_timestep = 21600
 faction_basic_timestep = 21600
 level_timestep = 86400
 
-re_named = re.compile('^<a href *= *"http://www.torn.com/profiles.php.XID=(\d+)">([()=\w-]+)</a> (\w+) <a href = "http://www.torn.com/profiles.php.XID=(\d+)"> *([()=\w-]+)<.a>([\w, +().-]*)')
-re_someone = re.compile('^Someone (\w+) <a href *= *"http://www.torn.com/profiles.php.XID=(\d+)">([\w-]+)<.a>([\w, +().-]*)')
+re_named = re.compile('^<a href *= *"http://www.torn.com/profiles.php.XID=(\d+)">([()=\w-]+)</a> (\w+) <a href = "http://www.torn.com/profiles.php.XID=(\d+)"> *([ ()=\w-]+)</a>([\w, +().-]*)')
+re_someone = re.compile('^Someone (\w+) <a href *= *"http://www.torn.com/profiles.php.XID=(\d+)">([ \w-]+)</a>([\w, +().-]*)')
 re_faction_used = re.compile('^<a href *= *"http://www.torn.com/profiles.php.XID=(\d+)">[()\w-]+</a> (used|filled) one of the faction.s (.*) items\.$')
 re_faction_energy = re.compile('^<a href *= *"?http://www.torn.com/profiles.php.XID=(\d+)"?>[()\w-]+</a> used 25 of the faction.s points to refill their energy\.$')
 
